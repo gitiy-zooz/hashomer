@@ -8,35 +8,35 @@
   const { Provider, useSelector, useDispatch } = window.ReactRedux;
 
   const Input = ({ label, required, helpText, isDisabled, ...props }) => (
-    <div className={`form-control ${isDisabled =="true" ? "disabled" : ""}` }>
+    <div className={`form-control ${isDisabled == "true" ? "disabled" : ""}`}>
       <label className={required ? "required" : ""}>{label}</label>
       <input className="selectField" {...props} />
       {helpText &&
-      <small>{helpText}</small>
+        <small>{helpText}</small>
       }
     </div>
   );
 
   const TextArea = ({ label, required, helpText, isDisabled, ...props }) => (
-    <div className={`form-control ${isDisabled =="true" ? "disabled" : ""}` }>
+    <div className={`form-control ${isDisabled == "true" ? "disabled" : ""}`}>
       <label className={required ? "required" : ""}>{label}</label>
       <textarea className="selectField" rows="4" {...props} />
       {helpText &&
-      <small>{helpText}</small>
+        <small>{helpText}</small>
       }
     </div>
   );
 
-  const Select = ({ label, required, helpText, ...props }) => (
+  const Select = ({ label, required, helpText, placeholder = "", ...props }) => (
     <div className="form-control">
-      <label className={required ? "required" : ""}>{label}</label>
+      <label className={required && label ? "required" : required ? "required hidden" : ""}>{label}</label>
       <select className="selectField" {...props}>
-        <option value="">בחירה מרשימה</option>
+        <option value="">{placeholder}</option>
         <option value="opt1">אפשרות 1</option>
         <option value="opt2">אפשרות 2</option>
       </select>
       {helpText &&
-      <small>{helpText}</small>
+        <small>{helpText}</small>
       }
     </div>
   );
@@ -99,27 +99,27 @@
           <div className="safetySection">
             <h2 className="form-title">פרטי האירוע</h2>
             <div className="form-row">
-              <Select label="סיווג האירוע" name="reporterType" value={form.reporterType} onChange={handleChange} required="true"/>
+              <Select label="סיווג האירוע" name="reporterType" value={form.reporterType} placeholder="בחירה מרשימה" onChange={handleChange} required="true" />
             </div>
 
             <div className="form-row">
-              <Select label="תחום האירוע" name="district" value={form.district} onChange={handleChange} required="true" helpText="יש לבחור באופציה הקרובה ביותר"/>
+              <Select label="תחום האירוע" name="district" value={form.district} placeholder="בחירה מרשימה" onChange={handleChange} required="true" helpText="יש לבחור באופציה הקרובה ביותר" />
             </div>
 
             <div className="form-row">
-              <Input label="תאריך התאונה/אירוע" type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required="true"/>
-              <Select label="שעת האירוע" name="eventHour" value={form.eventHour} onChange={handleChange} required="true"/>
-              <Select label="דקה" name="eventMinute" value={form.eventMinute} onChange={handleChange} required="true"/>
+              <Input label="תאריך התאונה/אירוע" type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required="true" />
+              <Select label="שעת האירוע" name="eventHour" value={form.eventHour} placeholder="שעה" onChange={handleChange} required="true" />
+              <Select label="" name="eventMinute" value={form.eventMinute} placeholder="דקות" onChange={handleChange} required="true" />
             </div>
 
             <div className="form-row">
-              <Input label="מקום וכתובת האירוע" name="location" value={form.location} onChange={handleChange} required="true"/>
+              <Input label="מקום וכתובת האירוע" name="location" value={form.location} onChange={handleChange} required="true" />
             </div>
 
             {/* Injured */}
             <div className="form-row">
-              <Input label="שם הנפגע" name="injuredName" value={form.injuredName} onChange={handleChange} required="true"/>
-              <Input label="ת.ז. הנפגע" name="injuredId" value={form.injuredId} onChange={handleChange} required="true"/>
+              <Input label="שם הנפגע" name="injuredName" value={form.injuredName} onChange={handleChange} required="true" placeholder="שם פרטי ושם משפחה" />
+              <Input label="ת.ז. הנפגע" name="injuredId" value={form.injuredId} onChange={handleChange} required="true" />
             </div>
 
             {/* Medical */}
@@ -130,7 +130,7 @@
               required="true"
               onChange={handleChange}
             />
-              <Input label="פירוט הטיפול שניתן בשטח" name="medicalDetails" value={form.medicalDetails} required="true" onChange={handleChange} isDisabled={form.medicalNeeded != "yes" ? "true" : "false"} helpText="יש לפרט בקצרה את סוג הטיפול שניתן בשטח ועל ידי איזה בעל תפקיד" />
+            <Input label="פירוט הטיפול שניתן בשטח" name="medicalDetails" value={form.medicalDetails} required="true" onChange={handleChange} isDisabled={form.medicalNeeded != "yes" ? "true" : "false"} helpText="יש לפרט בקצרה את סוג הטיפול שניתן בשטח ועל ידי איזה בעל תפקיד" />
 
             {/* Insurance */}
             <YesNo
@@ -140,11 +140,11 @@
               required="true"
               onChange={handleChange}
             />
-            <Input label="פירוט פרטי הפינוי(יש לציין את שם המוקד הרפואי)" name="insuranceDetails" value={form.insuranceDetails} required="true" onChange={handleChange} isDisabled={form.insuranceReported != "yes" ? "true" : "false" } helpText='יש לציין ע"ג איזה רכב פונה הפצוע, לאיזה מוקד רפואי ומה המשך הטיפול בו. אם אין, ניתן לכתוב "אין"'/>
+            <Input label="פירוט פרטי הפינוי(יש לציין את שם המוקד הרפואי)" name="insuranceDetails" value={form.insuranceDetails} required="true" onChange={handleChange} isDisabled={form.insuranceReported != "yes" ? "true" : "false"} helpText='יש לציין ע"ג איזה רכב פונה הפצוע, לאיזה מוקד רפואי ומה המשך הטיפול בו. אם אין, ניתן לכתוב "אין"' />
 
             <Input label="תיאור בקצרה של האירוע" name="shortDesc" value={form.shortDesc} required="true" onChange={handleChange} helpText="שימו לב, תיאור זה צריך להיות חד ושיציג למנהלים את שאירע בלי לציין שמות ונתונים שהוזנו כבר בטופס (עד 15 מילים)" />
-            <TextArea label="תיאור מפורט של האירוע ומסקנות (שימו לב! טופס זה אינו תחקיר האירוע)" name="fullDesc" value={form.fullDesc} onChange={handleChange} helpText="פה ניתן לספר ביתר פירוט את שארע כולל רקע גורמים תורמים ולקח ראשוני"/>
-            <TextArea label="עדים למקרה" name="witnesses" value={form.witnesses} required="true" onChange={handleChange} helpText="פרטים אישיים של עדי ראייה, מגישי עזרה ראשונה והאחראים במקום, כולל גורמי חוץ, תפקידם ומספר טלפון"/>
+            <TextArea label="תיאור מפורט של האירוע ומסקנות (שימו לב! טופס זה אינו תחקיר האירוע)" name="fullDesc" value={form.fullDesc} onChange={handleChange} helpText="פה ניתן לספר ביתר פירוט את שארע כולל רקע גורמים תורמים ולקח ראשוני" />
+            <TextArea label="עדים למקרה" name="witnesses" value={form.witnesses} required="true" onChange={handleChange} helpText="פרטים אישיים של עדי ראייה, מגישי עזרה ראשונה והאחראים במקום, כולל גורמי חוץ, תפקידם ומספר טלפון" />
           </div>
           {/* Files */}
           <div className="safetySection">
@@ -256,6 +256,7 @@
 
             </div>
           </div>
+          <div className="left-side"></div>
         </div>
       </>
     )
