@@ -1,0 +1,727 @@
+<!-- chaya 26/01 23:17 -->
+
+<script type="text/babel">
+
+  const { useState, useEffect, useRef, useMemo } = React;
+  const { Provider, useSelector, useDispatch } = window.ReactRedux;
+  const selectIsInstructor = (state) => state?.user?.userRoles?.leader || false;
+
+  // GroupFilter Component - inline definition
+  const GroupFilter = ({ groups, selectedGroup, onGroupChange, defaultLabel }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+
+    // Close on click outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
+
+    const handleSelect = (value) => {
+      onGroupChange(value);
+      setIsOpen(false);
+    };
+
+    // Helper to normalize group items (string or object)
+    const getValue = (g) => typeof g === 'object' ? g.value : g;
+    const getLabel = (g) => typeof g === 'object' ? g.label : g;
+
+    // Find selected label
+    const selectedLabel = defaultLabel;
+
+    return (
+      <div className="group-filter-wrapper" ref={dropdownRef}>
+        <button
+          className={`group-filter-btn ${isOpen ? 'open' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="group-filter-label">{selectedLabel}</span>
+          <svg className="group-filter-icon" viewBox="0 0 14 9">
+            <path d="M1 1L7 7L13 1" />
+          </svg>
+        </button>
+
+        {isOpen && (
+          <div className="group-filter-dropdown">
+            <div
+              className={`group-filter-item ${!selectedGroup ? 'selected' : ''}`}
+              onClick={() => handleSelect("")}
+            >
+              {defaultLabel}
+            </div>
+            {groups.map((group) => {
+              const val = getValue(group);
+              const lbl = getLabel(group);
+              return (
+                <div
+                  key={val}
+                  className={`group-filter-item ${selectedGroup == val ? 'selected' : ''}`}
+                  onClick={() => handleSelect(val)}
+                >
+                  {lbl}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Campers Page - Clean version, UnifiedDataTable handles data
+  const CampersPage = () => {
+    const [search, setSearch] = React.useState('');
+    const [showActivity, setShowActivity] = React.useState(false);
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+    const [isLoading, setIsLoading] = React.useState(true);  // Loading state (start true to prevent flash of old data)
+    const [displayData, setDisplayData] = React.useState([]);  // Local state for display
+    const [activeCampersCount, setActiveCampersCount] = React.useState(0);
+    const [currentMonthAttendance, setCurrentMonthAttendance] = React.useState("0%");
+
+    // Filter state - managed by GroupFilter components internally, tracked here for filtering logic
+    const [selectedLayer, setSelectedLayer] = React.useState('');
+    const [selectedInstructor, setSelectedInstructor] = React.useState('');
+
+    // Get related data from Redux (groups, leaders, groupStudents)
+    const { groups = {}, leaders = {}, groupStudents = {}, loading: relatedLoading = {} } = useSelector((state) => state?.related || {});
+
+    // Get user roles and current state from Redux
+    const { userRoles = {}, roles = {}, currentKnId = '', currentRole = '', currentGroupId = '', currentPageView = 'trainees', loading: userLoading = {} } = useSelector(state => state?.user || {});
+    const isCoordinator = userRoles?.coordinator;
+    const isInstructor = userRoles?.leader;
+
+    // View state managed entirely in Redux - no URL changes
+    const isInstructorsView = currentPageView === 'instructors';
+
+    const dispatch = useDispatch();
+
+
+    // Dynamic title based on view
+    const pageTitle = isInstructorsView ? 'מדריכים ' : 'חניכים שלי';
+    const tableTitle = isInstructorsView ? 'מדריכים/ות' : 'חניכים/ות';
+    const searchPlaceholder = isInstructorsView ? 'חיפוש מדריך/ה' : 'חיפוש חניך/ה';
+
+    useEffect(() => {
+      console.log('📋 useEffect 1: Checking roles', { roles, userLoading });
+      if (!roles || Object.keys(roles).length === 0) {
+        if (!userLoading?.roles) {
+          console.log('🚀 Dispatching fetchUserRoles()');
+          dispatch(fetchUserRoles());
+        }
+      }
+    }, [dispatch, roles, userLoading]);
+
+    useEffect(() => {
+
+      // Wait for roles to be loaded first
+      if (!roles || Object.keys(roles).length === 0) {
+        console.log('⏸️ Waiting for roles...');
+        return;
+      }
+
+      // Wait for currentKnId to be populated
+      if (!currentKnId) {
+        return;
+      }
+
+      setDisplayData([]);
+      setIsLoading(true);
+
+      if (isInstructorsView) {
+        if (isCoordinator) {
+          if (!leaders?.[currentKnId] && !relatedLoading?.leaders) {
+            dispatch(fetchLeaders()).then(() => {
+              setIsLoading(false);
+            }).catch(err => {
+              setIsLoading(false);
+            });
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          setIsLoading(false);
+        }
+      } else {
+        // Trainees view
+        if (isInstructor && currentGroupId) {
+          // Instructor view: fetch students for current group
+          if (!groupStudents?.[currentGroupId] && !relatedLoading?.groupStudents) {
+            dispatch(fetchGroupStudents(currentGroupId)).then(() => {
+              setIsLoading(false);
+            }).catch(err => {
+              setIsLoading(false);
+            });
+          } else {
+            setIsLoading(false);
+          }
+        } else if (isCoordinator && currentKnId) {
+          // Coordinator view: fetch all groups with members for KN
+          const knRoles = roles[currentKnId]?.rolesOptions || [];
+          const knGroupIds = knRoles
+            .map(role => role.groupId)
+            .filter(Boolean);
+
+          if (knGroupIds.length > 0 && (!groups || Object.keys(groups).length === 0) && !relatedLoading?.groups) {
+            dispatch(fetchUserGroupsWithMembers(knGroupIds)).then(() => {
+              setIsLoading(false);
+            }).catch(err => {
+              setIsLoading(false);
+            });
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          setIsLoading(false);
+        }
+      }
+    }, [currentKnId, currentGroupId, isInstructorsView, roles, dispatch, isCoordinator, isInstructor, leaders, groupStudents, groups, relatedLoading]);
+
+
+    // Transform and populate displayData based on view and context
+    useEffect(() => {
+
+      if (isLoading || !currentKnId) {
+        return;
+      }
+
+      let transformedData = [];
+
+      if (isInstructorsView) {
+        // Instructors view - each row represents one instructor-layer combination
+        const knLeaders = leaders?.[currentKnId] || [];
+        transformedData = knLeaders.map(leader => ({
+          id: `${leader.leaderId}-${leader.contactGroupId}`, // Unique ID per instructor-layer
+          leaderId: leader.leaderId, // Keep original ID for navigation
+          name: leader.leaderName,
+          email: "", // Not available in leaders data
+          phone: "", // Not available in leaders data
+          age: " ",
+          parentName: "",
+          parentPhone: "",
+          layer: leader.youthGroupName, // Youth group name (zooz_youth_group)
+          traineesCount: leader.totalStudents || 0, // Number of trainees in this layer
+          zooz_status1: 696480000, // Active
+          attendancePercent: "0" // Not relevant for instructors list
+        }));
+      } else {
+        // Trainees view
+        if (isInstructor && currentGroupId) {
+          // Instructor: show students from current group
+          const students = groupStudents?.[currentGroupId] || [];
+          transformedData = students.map(student => ({
+            id: student.id,
+            name: student.name,
+            email: student.email || "",
+            phone: student.phone || "",
+            age: " ", // Not available in basic student data
+            parentName: "",
+            parentPhone: "",
+            group: "",
+            zooz_status1: 696480000, // Active
+            attendancePercent: "0" // Placeholder
+          }));
+        } else if (isCoordinator) {
+          // Coordinator: show students from all KN groups
+          transformedData = [];
+          if (groups && typeof groups === 'object') {
+            Object.entries(groups).forEach(([groupId, group]) => {
+              console.log('📦 Group ID:', groupId);
+              console.log('📦 Group object:', group);
+              console.log('📦 Group name (layer):', group.name);
+              console.log('📦 Group leaders array:', group.leaders);
+              console.log('📦 Group students count:', group.students?.length);
+              if (group.students && group.students.length > 0) {
+                console.log('📦 First student in group:', group.students[0]);
+                console.log('📦 Student keys:', Object.keys(group.students[0]));
+              }
+              
+              // Extract leader name from leaders array (take first leader if multiple)
+              const leaderName = group.leaders && group.leaders.length > 0 ? group.leaders[0].name : '';
+              console.log('📦 Extracted leaderName:', leaderName);
+              
+              if (group.students) {
+                group.students.forEach(student => {
+                  transformedData.push({
+                    id: student.id,
+                    name: student.name,
+                    email: "",
+                    phone: "",
+                    age: "",
+                    parentName: "",
+                    parentPhone: "",
+                    groupId: groupId,  // youth_group ID for filtering
+                    group: group.name,  // layer name for display
+                    leaderName: leaderName,  // instructor name for filtering
+                    zooz_status1: 696480000, // Active
+                    attendancePercent: "0"
+                  });
+                });
+              }
+            });
+          }
+        }
+      }
+
+      setDisplayData(transformedData);
+
+      // Set active campers count from all transformed data
+      const activeCount = transformedData.filter(t => t.zooz_status1 === 696480000).length;
+      setActiveCampersCount(activeCount);
+
+      // Calculate average attendance (placeholder for now)
+      setCurrentMonthAttendance("0%");
+    }, [isInstructorsView, isInstructor, isCoordinator, currentKnId, currentGroupId, leaders, groupStudents, groups, isLoading]);
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    // Reset filters when view changes
+    useEffect(() => {
+      setSelectedLayer('');
+      setSelectedInstructor('');
+    }, [currentPageView]);
+
+    // Extract unique layers from groups data (not displayData)
+    const uniqueLayers = useMemo(() => {
+      if (isInstructorsView) {
+        // For instructors view, extract from displayData
+        if (!displayData || displayData.length === 0) return [];
+        const layersSet = new Set();
+        displayData.forEach(item => {
+          if (item.layer && item.layer.trim()) {
+            layersSet.add(item.layer);
+          }
+        });
+        return Array.from(layersSet).sort();
+      } else {
+        // For trainees view, extract from groups object (available layers)
+        if (!groups || Object.keys(groups).length === 0) return [];
+        const layersSet = new Set();
+        Object.values(groups).forEach(group => {
+          if (group.name && group.name.trim()) {
+            layersSet.add(group.name);
+          }
+        });
+        return Array.from(layersSet).sort();
+      }
+    }, [displayData, isInstructorsView, groups]);
+
+    // Extract unique instructors from groups data (for trainees view only)
+    const uniqueInstructors = useMemo(() => {
+      if (isInstructorsView) {
+        console.log('🎓 Skipping instructors extraction - instructors view');
+        return [];
+      }
+
+      // For trainees, extract instructors from groups data
+      const instructorsSet = new Set();
+
+      console.log('🎓 groups object:', groups);
+      console.log('🎓 groups keys:', Object.keys(groups || {}));
+
+      if (groups && typeof groups === 'object') {
+        Object.values(groups).forEach((group, index) => {
+          console.log(`🎓 Group ${index}:`, group);
+          console.log(`🎓 Group ${index} leaders:`, group.leaders);
+          
+          // Extract leader name from leaders array (take first leader if multiple)
+          if (group.leaders && group.leaders.length > 0) {
+            const leaderName = group.leaders[0].name;
+            console.log(`🎓 Group ${index} leaderName:`, leaderName);
+            if (leaderName && leaderName.trim()) {
+              instructorsSet.add(leaderName);
+            }
+          }
+        });
+      }
+
+      const result = Array.from(instructorsSet).sort();
+      console.log('🎓 Final uniqueInstructors:', result);
+      return result;
+    }, [isInstructorsView, groups]);
+
+    // Apply filters to displayData
+    const filteredData = useMemo(() => {
+      let filtered = [...displayData];
+
+      // Filter by layer (layer name comparison)
+      if (selectedLayer) {
+        const layerField = isInstructorsView ? 'layer' : 'group';
+        filtered = filtered.filter(item => item[layerField] === selectedLayer);
+      }
+
+      // Filter by instructor (trainees view only)
+      if (!isInstructorsView && selectedInstructor) {
+        // Filter students by instructor name (already stored in student object)
+        filtered = filtered.filter(item => item.leaderName === selectedInstructor);
+      }
+
+      return filtered;
+    }, [displayData, selectedLayer, selectedInstructor, isInstructorsView]);
+
+    // Define columns based on view
+    const traineesColumns = [
+      {
+        header: (
+          <div className="header-with-icon">
+            <span>שם</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_558_3538)">
+                <path d="M8.00039 5.57123C7.72982 5.85116 7.28356 5.85874 7.00363 5.58817C7.00361 5.58815 7.00365 5.58819 7.00363 5.58817L5.00828 3.6595V12.2403C5.00828 12.6296 4.69268 12.9452 4.30336 12.9452C3.91405 12.9452 3.59845 12.6296 3.59845 12.2403V3.6595L1.60316 5.58811C1.32781 5.86334 0.881482 5.86324 0.606257 5.58789C0.331032 5.31255 0.33113 4.86622 0.606477 4.59099C0.612128 4.58535 0.617874 4.57979 0.623713 4.57434L3.81345 1.49112C3.82522 1.4797 3.83882 1.4717 3.8512 1.46123L3.86293 1.45154C3.87826 1.4392 3.89243 1.42482 3.9085 1.41393C3.91115 1.41217 3.91418 1.41101 3.91686 1.40924C3.93596 1.39666 3.95626 1.38732 3.97625 1.37678C3.9968 1.366 4.01678 1.35415 4.03807 1.34552C4.05995 1.33735 4.08223 1.33029 4.10482 1.32437C4.12326 1.31898 4.14116 1.31154 4.15991 1.30767L4.16911 1.30647C4.19156 1.30213 4.21419 1.30107 4.23692 1.29892C4.25758 1.29702 4.27795 1.29353 4.29871 1.29339L4.30336 1.29297L4.30773 1.29339C4.32835 1.29357 4.34865 1.29692 4.3692 1.29896C4.3919 1.30107 4.41453 1.30213 4.43698 1.30643L4.44688 1.30774C4.46521 1.31154 4.48269 1.31891 4.5007 1.3242C4.52356 1.3301 4.5461 1.33716 4.56823 1.34534C4.57141 1.34665 4.57497 1.34714 4.5781 1.34848C4.59573 1.35592 4.61176 1.36706 4.62879 1.37597C4.64952 1.3859 4.66973 1.39689 4.68934 1.40889C4.6923 1.41083 4.69558 1.4122 4.6985 1.41418C4.7126 1.42359 4.72458 1.43617 4.73794 1.44671C4.74422 1.45164 4.75031 1.45676 4.75641 1.46194C4.76843 1.47209 4.78168 1.47988 4.79314 1.49098L7.98301 4.57434C8.26309 4.84475 8.27093 5.29101 8.00053 5.57109C8.00048 5.57113 8.00043 5.57118 8.00039 5.57123ZM15.402 10.4292C15.1314 10.1493 14.6851 10.1417 14.4052 10.4123C14.4052 10.4123 14.4052 10.4123 14.4052 10.4123L12.4099 12.3409V3.76017C12.4099 3.37085 12.0943 3.05525 11.705 3.05525C11.3156 3.05525 11 3.37085 11 3.76017V12.3409L9.00475 10.4124C8.72969 10.1369 8.28336 10.1365 8.00785 10.4115C7.73234 10.6866 7.73197 11.1329 8.00703 11.4084C8.01301 11.4144 8.01911 11.4203 8.02531 11.4261L11.215 14.5093C11.2276 14.5214 11.242 14.5301 11.2551 14.541C11.2649 14.5492 11.2744 14.5577 11.2846 14.5654C11.2958 14.5737 11.3062 14.5832 11.3177 14.5908C11.3383 14.6033 11.3595 14.6148 11.3812 14.6251C11.3983 14.6341 11.4142 14.6449 11.4322 14.6525L11.4397 14.6552C11.4645 14.6643 11.4898 14.6721 11.5155 14.6783C11.5323 14.683 11.548 14.6898 11.5652 14.6932L11.5702 14.6942C11.6591 14.7117 11.7506 14.7117 11.8395 14.6942L11.8445 14.6932C11.8617 14.6897 11.8774 14.683 11.8942 14.6783C11.9199 14.6721 11.9452 14.6643 11.97 14.6552L11.9775 14.6525C11.9955 14.6449 12.0114 14.6341 12.0285 14.6251C12.0502 14.6148 12.0714 14.6033 12.092 14.5908C12.1035 14.5832 12.1139 14.5737 12.1251 14.5654C12.1353 14.5577 12.1448 14.5492 12.1546 14.541C12.1677 14.53 12.1821 14.5214 12.1947 14.5093L15.3846 11.4261C15.6647 11.1557 15.6725 10.7094 15.4021 10.4294C15.4021 10.4293 15.402 10.4293 15.402 10.4292Z" fill="#1560A0" />
+              </g>
+              <defs>
+                <clipPath id="clip0_558_3538">
+                  <rect width="16" height="16" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        ),
+        accessor: "name",
+        render: (trainee) => (
+          <div className="name-cell-with-dot">
+            <span className={`status-dot ${trainee.zooz_status1 === 696480000 ? 'active' : 'inactive'}`}></span>
+            <span>{trainee.name}</span>
+          </div>
+        )
+      },
+      {
+        header: "גיל",
+        accessor: "age",
+        render: (trainee) => (
+          <div className="trainee-age">
+            <span>{trainee.age}</span>
+          </div>
+        )
+      },
+      {
+        header: "מייל",
+        accessor: "email",
+        render: (trainee) => (
+          <a href={`mailto:${trainee.email}`} className="email-link">
+            {trainee.email}
+          </a>
+        )
+      },
+      {
+        header: "טלפון נייד",
+        accessor: "phone",
+        render: (trainee) => (
+          <div className="phone-cell">
+            <span>{trainee.phone}</span>
+            <WhatsAppButton phone={trainee.phone} />
+          </div>
+        )
+      },
+      {
+        header: "הורה",
+        accessor: "parentName"
+      },
+      {
+        header: "טלפון הורה",
+        accessor: "parentPhone",
+        render: (trainee) => (
+          <div className="phone-cell">
+            <span>{trainee.parentPhone}</span>
+            <WhatsAppButton phone={trainee.parentPhone} />
+          </div>
+        )
+      },
+      {
+        header: (
+          <div className="header-with-icon">
+            <span>אחוזי נוכחות</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_558_3539)">
+                <path d="M8.00039 5.57123C7.72982 5.85116 7.28356 5.85874 7.00363 5.58817C7.00361 5.58815 7.00365 5.58819 7.00363 5.58817L5.00828 3.6595V12.2403C5.00828 12.6296 4.69268 12.9452 4.30336 12.9452C3.91405 12.9452 3.59845 12.6296 3.59845 12.2403V3.6595L1.60316 5.58811C1.32781 5.86334 0.881482 5.86324 0.606257 5.58789C0.331032 5.31255 0.33113 4.86622 0.606477 4.59099C0.612128 4.58535 0.617874 4.57979 0.623713 4.57434L3.81345 1.49112C3.82522 1.4797 3.83882 1.4717 3.8512 1.46123L3.86293 1.45154C3.87826 1.4392 3.89243 1.42482 3.9085 1.41393C3.91115 1.41217 3.91418 1.41101 3.91686 1.40924C3.93596 1.39666 3.95626 1.38732 3.97625 1.37678C3.9968 1.366 4.01678 1.35415 4.03807 1.34552C4.05995 1.33735 4.08223 1.33029 4.10482 1.32437C4.12326 1.31898 4.14116 1.31154 4.15991 1.30767L4.16911 1.30647C4.19156 1.30213 4.21419 1.30107 4.23692 1.29892C4.25758 1.29702 4.27795 1.29353 4.29871 1.29339L4.30336 1.29297L4.30773 1.29339C4.32835 1.29357 4.34865 1.29692 4.3692 1.29896C4.3919 1.30107 4.41453 1.30213 4.43698 1.30643L4.44688 1.30774C4.46521 1.31154 4.48269 1.31891 4.5007 1.3242C4.52356 1.3301 4.5461 1.33716 4.56823 1.34534C4.57141 1.34665 4.57497 1.34714 4.5781 1.34848C4.59573 1.35592 4.61176 1.36706 4.62879 1.37597C4.64952 1.3859 4.66973 1.39689 4.68934 1.40889C4.6923 1.41083 4.69558 1.4122 4.6985 1.41418C4.7126 1.42359 4.72458 1.43617 4.73794 1.44671C4.74422 1.45164 4.75031 1.45676 4.75641 1.46194C4.76843 1.47209 4.78168 1.47988 4.79314 1.49098L7.98301 4.57434C8.26309 4.84475 8.27093 5.29101 8.00053 5.57109C8.00048 5.57113 8.00043 5.57118 8.00039 5.57123ZM15.402 10.4292C15.1314 10.1493 14.6851 10.1417 14.4052 10.4123C14.4052 10.4123 14.4052 10.4123 14.4052 10.4123L12.4099 12.3409V3.76017C12.4099 3.37085 12.0943 3.05525 11.705 3.05525C11.3156 3.05525 11 3.37085 11 3.76017V12.3409L9.00475 10.4124C8.72969 10.1369 8.28336 10.1365 8.00785 10.4115C7.73234 10.6866 7.73197 11.1329 8.00703 11.4084C8.01301 11.4144 8.01911 11.4203 8.02531 11.4261L11.215 14.5093C11.2276 14.5214 11.242 14.5301 11.2551 14.541C11.2649 14.5492 11.2744 14.5577 11.2846 14.5654C11.2958 14.5737 11.3062 14.5832 11.3177 14.5908C11.3383 14.6033 11.3595 14.6148 11.3812 14.6251C11.3983 14.6341 11.4142 14.6449 11.4322 14.6525L11.4397 14.6552C11.4645 14.6643 11.4898 14.6721 11.5155 14.6783C11.5323 14.683 11.548 14.6898 11.5652 14.6932L11.5702 14.6942C11.6591 14.7117 11.7506 14.7117 11.8395 14.6942L11.8445 14.6932C11.8617 14.6897 11.8774 14.683 11.8942 14.6783C11.9199 14.6721 11.9452 14.6643 11.97 14.6552L11.9775 14.6525C11.9955 14.6449 12.0114 14.6341 12.0285 14.6251C12.0502 14.6148 12.0714 14.6033 12.092 14.5908C12.1035 14.5832 12.1139 14.5737 12.1251 14.5654C12.1353 14.5577 12.1448 14.5492 12.1546 14.541C12.1677 14.53 12.1821 14.5214 12.1947 14.5093L15.3846 11.4261C15.6647 11.1557 15.6725 10.7094 15.4021 10.4294C15.4021 10.4293 15.402 10.4293 15.402 10.4292Z" fill="#1560A0" />
+              </g>
+              <defs>
+                <clipPath id="clip0_558_3539">
+                  <rect width="16" height="16" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        ),
+        accessor: "attendancePercent",
+        render: (trainee) => {
+          const percentage = parseInt(trainee.attendancePercent);
+          let colorClass = '';
+          let icon = null;
+          let displayText = '';
+
+          if (!percentage) {
+            colorClass = 'no-attendance';
+            icon = <svg width="19" height="2" viewBox="0 0 19 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4.76562 1.25H0.945312V0.0703125H4.76562V1.25ZM9.1875 1.25H5.36719V0.0703125H9.1875V1.25ZM13.6094 1.25H9.78906V0.0703125H13.6094V1.25ZM18.0312 1.25H14.2109V0.0703125H18.0312V1.25Z" fill="#333333" />
+            </svg>;
+            displayText = '';
+          } else if (percentage >= 76) {
+            colorClass = 'high-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.02843 5.32275V10.8228C2.02843 11.0051 2.10086 11.18 2.22979 11.3089C2.35872 11.4378 2.53359 11.5103 2.71593 11.5103C2.89826 11.5103 3.07313 11.4378 3.20206 11.3089C3.33099 11.18 3.40343 11.0051 3.40343 10.8228V6.98221L10.4795 14.0592C10.5434 14.1231 10.6192 14.1738 10.7027 14.2084C10.7861 14.243 10.8756 14.2608 10.9659 14.2608C11.0563 14.2608 11.1457 14.243 11.2292 14.2084C11.3127 14.1738 11.3885 14.1231 11.4523 14.0592L14.4034 11.1072L20.1045 16.8092C20.2335 16.9382 20.4085 17.0106 20.5909 17.0106C20.7734 17.0106 20.9483 16.9382 21.0773 16.8092C21.2063 16.6802 21.2788 16.5052 21.2788 16.3228C21.2788 16.1403 21.2063 15.9654 21.0773 15.8363L14.8898 9.64885C14.826 9.58493 14.7502 9.53422 14.6667 9.49962C14.5832 9.46502 14.4938 9.44721 14.4034 9.44721C14.3131 9.44721 14.2236 9.46502 14.1402 9.49962C14.0567 9.53422 13.9809 9.58493 13.917 9.64885L10.9659 12.6008L4.37538 6.01025H8.21593C8.39826 6.01025 8.57313 5.93782 8.70206 5.80889C8.83099 5.67996 8.90343 5.50509 8.90343 5.32275C8.90343 5.14042 8.83099 4.96555 8.70206 4.83662C8.57313 4.70769 8.39826 4.63525 8.21593 4.63525H2.71593C2.53359 4.63525 2.35872 4.70769 2.22979 4.83662C2.10086 4.96555 2.02843 5.14042 2.02843 5.32275Z" fill="#0F9581" />
+            </svg>;
+            displayText = `${percentage}%`;
+          } else if (percentage == 75) {
+            colorClass = 'medium-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19.9033 14.25C19.9033 14.4323 19.8309 14.6072 19.702 14.7361C19.573 14.8651 19.3982 14.9375 19.2158 14.9375H4.09082C3.90848 14.9375 3.73362 14.8651 3.60468 14.7361C3.47575 14.6072 3.40332 14.4323 3.40332 14.25C3.40332 14.0677 3.47575 13.8928 3.60468 13.7639C3.73362 13.6349 3.90848 13.5625 4.09082 13.5625H19.2158C19.3982 13.5625 19.573 13.6349 19.702 13.7639C19.8309 13.8928 19.9033 14.0677 19.9033 14.25ZM4.09082 9.4375H19.2158C19.3982 9.4375 19.573 9.36507 19.702 9.23614C19.8309 9.1072 19.9033 8.93234 19.9033 8.75C19.9033 8.56766 19.8309 8.3928 19.702 8.26386C19.573 8.13493 19.3982 8.0625 19.2158 8.0625H4.09082C3.90848 8.0625 3.73362 8.13493 3.60468 8.26386C3.47575 8.3928 3.40332 8.56766 3.40332 8.75C3.40332 8.93234 3.47575 9.1072 3.60468 9.23614C3.73362 9.36507 3.90848 9.4375 4.09082 9.4375Z" fill="#DB992B" />
+            </svg>;
+            displayText = `${percentage}%`;
+          } else {
+            colorClass = 'low-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.02843 17.6978V12.1978C2.02843 12.0154 2.10086 11.8405 2.22979 11.7116C2.35872 11.5827 2.53359 11.5103 2.71593 11.5103C2.89826 11.5103 3.07313 11.5827 3.20206 11.7116C3.33099 11.8405 3.40343 12.0154 3.40343 12.1978V16.0383L10.4795 8.96135C10.5434 8.89743 10.6192 8.84672 10.7027 8.81212C10.7861 8.77752 10.8756 8.75971 10.9659 8.75971C11.0563 8.75971 11.1457 8.77752 11.2292 8.81212C11.3127 8.84672 11.3885 8.89743 11.4523 8.96135L14.4034 11.9133L20.1045 6.21135C20.2335 6.08234 20.4085 6.00987 20.5909 6.00987C20.7734 6.00987 20.9483 6.08234 21.0773 6.21135C21.2063 6.34035 21.2788 6.51532 21.2788 6.69775C21.2788 6.88019 21.2063 7.05516 21.0773 7.18416L14.8898 13.3717C14.826 13.4356 14.7502 13.4863 14.6667 13.5209C14.5832 13.5555 14.4938 13.5733 14.4034 13.5733C14.3131 13.5733 14.2236 13.5555 14.1402 13.5209C14.0567 13.4863 13.9809 13.4356 13.917 13.3717L10.9659 10.4197L4.37538 17.0103H8.21593C8.39826 17.0103 8.57313 17.0827 8.70206 17.2116C8.83099 17.3405 8.90343 17.5154 8.90343 17.6978C8.90343 17.8801 8.83099 18.055 8.70206 18.1839C8.57313 18.3128 8.39826 18.3853 8.21593 18.3853H2.71593C2.53359 18.3853 2.35872 18.3128 2.22979 18.1839C2.10086 18.055 2.02843 17.8801 2.02843 17.6978Z" fill="#D93D1E" />
+            </svg>;
+            displayText = `${percentage}%`;
+          }
+
+          return (
+            <span className={`attendance-badge ${colorClass}`}>
+              {displayText && <span className="attendance-number">{displayText}</span>}
+              {icon}
+            </span>
+          );
+        }
+      }
+    ];
+
+    // Instructors columns - all trainee columns PLUS layer and trainees count
+    const instructorsColumns = [
+      {
+        header: (
+          <div className="header-with-icon">
+            <span>שם</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_558_3538)">
+                <path d="M8.00039 5.57123C7.72982 5.85116 7.28356 5.85874 7.00363 5.58817C7.00361 5.58815 7.00365 5.58819 7.00363 5.58817L5.00828 3.6595V12.2403C5.00828 12.6296 4.69268 12.9452 4.30336 12.9452C3.91405 12.9452 3.59845 12.6296 3.59845 12.2403V3.6595L1.60316 5.58811C1.32781 5.86334 0.881482 5.86324 0.606257 5.58789C0.331032 5.31255 0.33113 4.86622 0.606477 4.59099C0.612128 4.58535 0.617874 4.57979 0.623713 4.57434L3.81345 1.49112C3.82522 1.4797 3.83882 1.4717 3.8512 1.46123L3.86293 1.45154C3.87826 1.4392 3.89243 1.42482 3.9085 1.41393C3.91115 1.41217 3.91418 1.41101 3.91686 1.40924C3.93596 1.39666 3.95626 1.38732 3.97625 1.37678C3.9968 1.366 4.01678 1.35415 4.03807 1.34552C4.05995 1.33735 4.08223 1.33029 4.10482 1.32437C4.12326 1.31898 4.14116 1.31154 4.15991 1.30767L4.16911 1.30647C4.19156 1.30213 4.21419 1.30107 4.23692 1.29892C4.25758 1.29702 4.27795 1.29353 4.29871 1.29339L4.30336 1.29297L4.30773 1.29339C4.32835 1.29357 4.34865 1.29692 4.3692 1.29896C4.3919 1.30107 4.41453 1.30213 4.43698 1.30643L4.44688 1.30774C4.46521 1.31154 4.48269 1.31891 4.5007 1.3242C4.52356 1.3301 4.5461 1.33716 4.56823 1.34534C4.57141 1.34665 4.57497 1.34714 4.5781 1.34848C4.59573 1.35592 4.61176 1.36706 4.62879 1.37597C4.64952 1.3859 4.66973 1.39689 4.68934 1.40889C4.6923 1.41083 4.69558 1.4122 4.6985 1.41418C4.7126 1.42359 4.72458 1.43617 4.73794 1.44671C4.74422 1.45164 4.75031 1.45676 4.75641 1.46194C4.76843 1.47209 4.78168 1.47988 4.79314 1.49098L7.98301 4.57434C8.26309 4.84475 8.27093 5.29101 8.00053 5.57109C8.00048 5.57113 8.00043 5.57118 8.00039 5.57123ZM15.402 10.4292C15.1314 10.1493 14.6851 10.1417 14.4052 10.4123C14.4052 10.4123 14.4052 10.4123 14.4052 10.4123L12.4099 12.3409V3.76017C12.4099 3.37085 12.0943 3.05525 11.705 3.05525C11.3156 3.05525 11 3.37085 11 3.76017V12.3409L9.00475 10.4124C8.72969 10.1369 8.28336 10.1365 8.00785 10.4115C7.73234 10.6866 7.73197 11.1329 8.00703 11.4084C8.01301 11.4144 8.01911 11.4203 8.02531 11.4261L11.215 14.5093C11.2276 14.5214 11.242 14.5301 11.2551 14.541C11.2649 14.5492 11.2744 14.5577 11.2846 14.5654C11.2958 14.5737 11.3062 14.5832 11.3177 14.5908C11.3383 14.6033 11.3595 14.6148 11.3812 14.6251C11.3983 14.6341 11.4142 14.6449 11.4322 14.6525L11.4397 14.6552C11.4645 14.6643 11.4898 14.6721 11.5155 14.6783C11.5323 14.683 11.548 14.6898 11.5652 14.6932L11.5702 14.6942C11.6591 14.7117 11.7506 14.7117 11.8395 14.6942L11.8445 14.6932C11.8617 14.6897 11.8774 14.683 11.8942 14.6783C11.9199 14.6721 11.9452 14.6643 11.97 14.6552L11.9775 14.6525C11.9955 14.6449 12.0114 14.6341 12.0285 14.6251C12.0502 14.6148 12.0714 14.6033 12.092 14.5908C12.1035 14.5832 12.1139 14.5737 12.1251 14.5654C12.1353 14.5577 12.1448 14.5492 12.1546 14.541C12.1677 14.53 12.1821 14.5214 12.1947 14.5093L15.3846 11.4261C15.6647 11.1557 15.6725 10.7094 15.4021 10.4294C15.4021 10.4293 15.402 10.4293 15.402 10.4292Z" fill="#1560A0" />
+              </g>
+              <defs>
+                <clipPath id="clip0_558_3538">
+                  <rect width="16" height="16" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        ),
+        accessor: "name",
+        render: (instructor) => (
+          <div className="name-cell-with-dot">
+            <span className={`status-dot ${instructor.zooz_status1 === 696480000 ? 'active' : 'inactive'}`}></span>
+            <span>{instructor.name}</span>
+          </div>
+        )
+      },
+
+      {
+        header: "גיל",
+        accessor: "age"
+      },
+      {
+        header: "מייל",
+        accessor: "email",
+        render: (instructor) => (
+          <a href={`mailto:${instructor.email}`} className="email-link">
+            {instructor.email}
+          </a>
+        )
+      },
+      {
+        header: "טלפון נייד",
+        accessor: "phone",
+        render: (instructor) => (
+          <div className="phone-cell">
+            <span>{instructor.phone}</span>
+            <WhatsAppButton phone={instructor.phone} />
+          </div>
+        )
+      },
+      {
+        header: "הורה",
+        accessor: "parentName"
+      },
+      {
+        header: "טלפון הורה",
+        accessor: "parentPhone",
+        render: (instructor) => (
+          <div className="phone-cell">
+            <span>{instructor.parentPhone}</span>
+            <WhatsAppButton phone={instructor.parentPhone} />
+          </div>
+        )
+      },
+          {
+        header: "שכבה",
+        accessor: "layer"
+      },
+      {
+        header: "מספר חניכים",
+        accessor: "traineesCount"
+      }
+    ];
+
+    // Use conditional columns based on view
+    const columns = isInstructorsView ? instructorsColumns : traineesColumns;
+
+    // Handle row click - navigate to profile page
+    const handleRowClick = (row) => {
+      // Only for instructors view
+      if (isInstructorsView && row?.leaderId) {
+        // Save instructor data to localStorage before navigation
+        localStorage.setItem('selectedInstructor', JSON.stringify(row));
+        localStorage.setItem('allInstructors', JSON.stringify(displayData));
+        window.location.href = `/_profile?id=${row.leaderId}&type=instructor`;
+      }
+    };
+
+    return (
+      <div className="page-layout">
+        {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile />}
+        <div className={`activities-main-container ${!isMobile ? "main-content" : ""}`}>
+          <div className="containerPage">
+            {/* Breadcrumb - Mobile only */}
+            {isMobile && (
+              <div className="breadcrumb-navigation">
+                <a href="/" className="back-to-activities">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.3172 10.442L11.6922 16.067C11.5749 16.1843 11.4159 16.2502 11.25 16.2502C11.0841 16.2502 10.9251 16.1843 10.8078 16.067C10.6905 15.9498 10.6247 15.7907 10.6247 15.6249C10.6247 15.459 10.6905 15.2999 10.8078 15.1827L15.3664 10.6249H3.125C2.95924 10.6249 2.80027 10.559 2.68306 10.4418C2.56585 10.3246 2.5 10.1656 2.5 9.99986C2.5 9.8341 2.56585 9.67513 2.68306 9.55792C2.80027 9.44071 2.95924 9.37486 3.125 9.37486H15.3664L10.8078 4.81705C10.6905 4.69977 10.6247 4.54071 10.6247 4.37486C10.6247 4.20901 10.6905 4.04995 10.8078 3.93267C10.9251 3.8154 11.0841 3.74951 11.25 3.74951C11.4159 3.74951 11.5749 3.8154 11.6922 3.93267L17.3172 9.55767C17.3753 9.61572 17.4214 9.68465 17.4528 9.76052C17.4843 9.8364 17.5005 9.91772 17.5005 9.99986C17.5005 10.082 17.4843 10.1633 17.4528 10.2392C17.4214 10.3151 17.3753 10.384 17.3172 10.442Z" fill="black" />
+                  </svg>
+                </a>
+              </div>
+            )}
+
+            <div className="page-header">
+              <h1 className="page-title">{pageTitle}</h1>
+
+              <p className="page-subtitle">מחוז בנימין • מידע צורותי מלא • סניף נהריה</p>
+            </div>
+
+            {/* Show cards only for trainees page */}
+            {!isInstructorsView && (
+              <div className="new-top-cards">
+                <StatusCard
+                  title="סה״ך חניכים/ות"
+                  content={displayData.length}
+                  icon={<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10.9921 15.0963C11.9973 14.4271 12.7605 13.4522 13.1687 12.3158C13.577 11.1793 13.6087 9.94162 13.2591 8.78575C12.9095 7.62988 12.1973 6.61719 11.2276 5.89743C10.258 5.17768 9.0825 4.78906 7.87492 4.78906C6.66735 4.78906 5.49184 5.17768 4.52221 5.89743C3.55258 6.61719 2.84032 7.62988 2.49076 8.78575C2.1412 9.94162 2.17288 11.1793 2.58114 12.3158C2.9894 13.4522 3.75255 14.4271 4.75774 15.0963C2.93945 15.7665 1.38659 17.0066 0.330862 18.6317C0.275377 18.7141 0.236837 18.8068 0.217482 18.9043C0.198127 19.0018 0.198344 19.1021 0.218119 19.1996C0.237895 19.297 0.276835 19.3895 0.332676 19.4717C0.388516 19.5539 0.460144 19.6242 0.543396 19.6785C0.626647 19.7328 0.719861 19.77 0.81762 19.788C0.915378 19.8059 1.01573 19.8043 1.11285 19.7831C1.20996 19.762 1.3019 19.7217 1.38332 19.6647C1.46473 19.6077 1.53401 19.5351 1.58711 19.451C2.2681 18.4036 3.19995 17.543 4.29802 16.9471C5.3961 16.3513 6.62562 16.0392 7.87492 16.0392C9.12423 16.0392 10.3538 16.3513 11.4518 16.9471C12.5499 17.543 13.4817 18.4036 14.1627 19.451C14.2727 19.6145 14.4427 19.7282 14.6358 19.7674C14.8289 19.8066 15.0297 19.7682 15.1947 19.6605C15.3598 19.5529 15.4758 19.3846 15.5178 19.1921C15.5598 18.9995 15.5243 18.7982 15.419 18.6317C14.3633 17.0066 12.8104 15.7665 10.9921 15.0963ZM3.74992 10.4163C3.74992 9.6005 3.99185 8.80297 4.44511 8.12462C4.89837 7.44626 5.54261 6.91755 6.29636 6.60534C7.0501 6.29313 7.8795 6.21144 8.67967 6.37061C9.47984 6.52977 10.2148 6.92264 10.7917 7.49953C11.3686 8.07642 11.7615 8.81143 11.9207 9.6116C12.0798 10.4118 11.9981 11.2412 11.6859 11.9949C11.3737 12.7487 10.845 13.3929 10.1667 13.8462C9.4883 14.2994 8.69077 14.5413 7.87492 14.5413C6.78129 14.5401 5.7328 14.1051 4.95948 13.3318C4.18616 12.5585 3.75117 11.51 3.74992 10.4163ZM23.4506 19.6695C23.284 19.7781 23.081 19.8161 22.8864 19.7752C22.6918 19.7342 22.5214 19.6176 22.4127 19.451C21.7326 18.403 20.8008 17.542 19.7025 16.9464C18.6042 16.3508 17.3743 16.0397 16.1249 16.0413C15.926 16.0413 15.7352 15.9623 15.5946 15.8217C15.4539 15.681 15.3749 15.4903 15.3749 15.2913C15.3749 15.0924 15.4539 14.9017 15.5946 14.761C15.7352 14.6204 15.926 14.5413 16.1249 14.5413C16.7324 14.5408 17.3322 14.406 17.8816 14.1468C18.431 13.8875 18.9163 13.5101 19.3029 13.0415C19.6895 12.5729 19.9678 12.0248 20.118 11.4361C20.2682 10.8475 20.2865 10.233 20.1716 9.63648C20.0568 9.03997 19.8116 8.47618 19.4536 7.9854C19.0956 7.49463 18.6337 7.08898 18.1007 6.79744C17.5678 6.5059 16.977 6.33567 16.3707 6.29891C15.7643 6.26215 15.1573 6.35976 14.5931 6.58478C14.501 6.62455 14.402 6.64548 14.3018 6.64633C14.2016 6.64717 14.1022 6.62792 14.0095 6.58971C13.9169 6.5515 13.8328 6.49511 13.7623 6.42386C13.6918 6.35261 13.6363 6.26796 13.5991 6.1749C13.5619 6.08184 13.5437 5.98226 13.5456 5.88205C13.5475 5.78184 13.5695 5.68303 13.6102 5.59146C13.651 5.49988 13.7097 5.41741 13.7828 5.3489C13.856 5.28039 13.9421 5.22724 14.0362 5.19259C15.3275 4.67758 16.7639 4.65905 18.0681 5.14057C19.3723 5.62209 20.452 6.56955 21.0989 7.80017C21.7458 9.03079 21.914 10.4574 21.5711 11.8047C21.2283 13.152 20.3986 14.3247 19.2421 15.0963C21.0604 15.7665 22.6133 17.0066 23.669 18.6317C23.7776 18.7983 23.8156 19.0012 23.7747 19.1958C23.7337 19.3904 23.6171 19.5608 23.4506 19.6695Z" fill="white" />
+                  </svg>}
+                  style='{"background":"linear-gradient(265.59deg, #B9A976 36.05%, #DCDAC0 208.75%)","width": "25%"}'
+                />
+                <StatusCard
+                  title="פעילים"
+                  content={activeCampersCount}
+                  icon={<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21.7954 7.83748L9.79541 19.8375C9.69089 19.9424 9.5667 20.0256 9.42995 20.0824C9.29321 20.1391 9.1466 20.1684 8.99853 20.1684C8.85047 20.1684 8.70386 20.1391 8.56711 20.0824C8.43037 20.0256 8.30617 19.9424 8.20166 19.8375L2.95166 14.5875C2.84701 14.4828 2.764 14.3586 2.70737 14.2219C2.65073 14.0851 2.62158 13.9386 2.62158 13.7906C2.62158 13.6426 2.65073 13.4961 2.70737 13.3593C2.764 13.2226 2.84701 13.0984 2.95166 12.9937C3.05631 12.8891 3.18054 12.8061 3.31727 12.7494C3.454 12.6928 3.60054 12.6637 3.74853 12.6637C3.89653 12.6637 4.04307 12.6928 4.1798 12.7494C4.31653 12.8061 4.44076 12.8891 4.54541 12.9937L8.99947 17.4478L20.2035 6.2456C20.4149 6.03426 20.7015 5.91553 21.0004 5.91553C21.2993 5.91553 21.5859 6.03426 21.7973 6.2456C22.0086 6.45695 22.1274 6.74359 22.1274 7.04248C22.1274 7.34136 22.0086 7.62801 21.7973 7.83935L21.7954 7.83748Z" fill="white" />
+                  </svg>}
+                  style='{"background":"linear-gradient(262.31deg, #00466D -6.1%, #1082C2 88.42%)","width": "25%"}'
+                />
+                <StatusCard
+                  title="רמת נוכחות חודש נוכחי"
+                  content={currentMonthAttendance}
+                  icon={<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M22.5283 8.1546C22.3513 7.9416 22.1113 7.8096 21.8533 7.7886C21.3763 7.7466 20.7793 8.4276 19.5853 9.7866C18.9673 10.4886 18.6583 10.8426 18.3133 10.8966C18.1213 10.9266 17.9293 10.8966 17.7523 10.8066C17.4343 10.6476 17.2213 10.2126 16.7983 9.3426L14.5603 4.7586C13.7593 3.1146 13.3573 2.2926 12.7483 2.2926C12.1393 2.2926 11.7373 3.1146 10.9363 4.7586L8.69834 9.3396C8.27534 10.2096 8.06234 10.6446 7.74434 10.8036C7.56734 10.8936 7.37234 10.9236 7.18334 10.8936C6.83834 10.8396 6.52934 10.4886 5.91134 9.7836C4.71734 8.4246 4.12034 7.7436 3.64334 7.7856C3.38534 7.8096 3.14534 7.9386 2.96834 8.1516C2.64134 8.5476 2.73134 9.50459 2.91134 11.4156L3.13934 13.8516C3.51734 17.8656 3.70634 19.8726 4.88834 21.0816C6.07034 22.2906 7.84334 22.2906 11.3893 22.2906H14.1103C17.6563 22.2906 19.4263 22.2906 20.6113 21.0816C21.7933 19.8726 21.9823 17.8656 22.3603 13.8516L22.5883 11.4156C22.7653 9.50459 22.8553 8.5476 22.5283 8.1546ZM15.7483 19.0416H9.74834C9.33434 19.0416 8.99834 18.7056 8.99834 18.2916C8.99834 17.8776 9.33434 17.5416 9.74834 17.5416H15.7483C16.1623 17.5416 16.4983 17.8776 16.4983 18.2916C16.4983 18.7056 16.1623 19.0416 15.7483 19.0416Z" fill="url(#paint0_linear_8_1737)" />
+                    <defs>
+                      <linearGradient id="paint0_linear_8_1737" x1="15.284" y1="33.0594" x2="19.9716" y2="5.78622" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#E9C272" />
+                        <stop offset="1" stopColor="#DB992B" />
+                      </linearGradient>
+                    </defs>
+                  </svg>}
+                  className="presence-card"
+                  style='{"background": "linear-gradient(261.4deg, #006455 24.82%, #15AD96 101.57%)", "width": "50%"}'
+                />
+              </div>
+            )}
+
+            <div className="divContent">
+              {isLoading ? (
+                <div className="loading-message">
+                  🔄 טוען נתונים...
+                </div>
+              ) : (
+                <UnifiedDataTable
+                  columns={columns}
+                  customData={filteredData}
+                  title={tableTitle}
+                  search={search}
+                  setSearch={setSearch}
+                  searchPlaceholder={searchPlaceholder}
+                  mode="basic"
+                  disableAutoFetch={true}
+                  onRowClick={isInstructorsView ? handleRowClick : undefined}
+                  customFilters={(() => {
+           
+                    if (!isCoordinator) return null;
+
+                    return (
+                      <>
+                        {/* Layer Filter - show for both views */}
+                        <GroupFilter
+                          key="layer-filter"
+                          groups={uniqueLayers}
+                          selectedGroup={selectedLayer}
+                          onGroupChange={setSelectedLayer}
+                          defaultLabel="כל השכבות"
+                        />
+
+                        {/* Instructor Filter - always show for trainees view (coordinators only) */}
+                        {!isInstructorsView && (
+                          <GroupFilter
+                            key="instructor-filter"
+                            groups={uniqueInstructors}
+                            selectedGroup={selectedInstructor}
+                            onGroupChange={setSelectedInstructor}
+                            defaultLabel="כל המדריכים"
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  const rootElement = document.getElementById("campers-root");
+  if (rootElement) {
+    const AppWithProvider = () => (
+      <ReactRedux.Provider store={store}>
+        <CampersPage />
+      </ReactRedux.Provider>
+    );
+
+    if (ReactDOM.createRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(<AppWithProvider />);
+    } else {
+      ReactDOM.render(<AppWithProvider />, rootElement);
+    }
+  }
+
+</script>
+
+<div class="sectionBlockLayout">
+  <div class="container container-full">
+    <div>
+      <div id="campers-root"></div>
+    </div>
+  </div>
+</div>

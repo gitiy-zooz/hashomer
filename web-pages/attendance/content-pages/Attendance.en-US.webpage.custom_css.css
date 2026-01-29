@@ -1,0 +1,855 @@
+/* ==================== ACTIVITY ATTENDANCE PAGE ==================== */
+
+.activity-attendance-page {
+    width: 75vw;
+    background-color: #ffffff;
+    min-height: 100vh;
+}
+.bigContentDiv{
+    overflow: auto;
+    height: 100vh;
+    /* margin-right:280px; */
+}
+/* ==================== TYPOGRAPHY ==================== */
+#titleText {
+    font-family: 'Heebo';
+    font-weight: 800;
+    font-size: 43px;
+    line-height: 100%;
+    text-align: right;
+}
+
+#topText {
+    font-family: Heebo;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 100%;
+    text-align: right;
+}
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl{
+    margin-right:0px;
+    width:100%;
+}
+.smiley-btn {
+    border: transparent;
+    background-color: transparent;
+}
+
+/* ==================== LAYOUT ==================== */
+.bigContentDiv {
+    width: 75vw;
+    margin-right:auto;
+    margin-left:auto;
+}
+
+.bigContentDiv1 {
+    overflow: hidden;
+    width:100%;
+    display: flex;
+    margin-left: 30px;
+}
+
+.activity-attendance-page .titleDiv {
+    display: flex !important;
+    gap: 0.5vw !important;
+    align-items: center !important;
+    max-width: 1600px !important;
+    margin: 0 auto 5px auto !important;
+    width: auto !important;
+    box-sizing: border-box !important;
+}
+
+.title-with-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+span.tag {
+    margin-bottom: 15px;
+    margin-top: 20px;
+    margin-right: 0px;
+}
+
+/* ==================== BUTTONS ==================== */
+#titleButton {
+    width: 165px;
+    background-color: #ffff;
+    height: 36px;
+    margin-top: 20px;
+    border-radius: 70px;
+    border-width: 1px;
+    border-color: #006455;
+}
+
+#titleButton-mobile {
+    width: 150px;
+    height: 30px;
+    background-color: #ffffff;
+    border-radius: 70px;
+    border-width: 1px;
+    border-color: #006455;
+    margin-top: 10%;
+    margin-right: 5%;
+}
+
+button.back-home {
+    border: none;
+    background: transparent;
+    color: black;
+    margin-bottom: 5px;
+}
+
+.mobile-header-top {
+    display: flex;
+    align-items: baseline;
+}
+
+/* ==================== STATUS BUTTONS ==================== */
+.activity-attendance-page .buttonsStatus,
+.activity-attendance-page .tableParticipants .buttonsStatus,
+.activity-attendance-page div.tableParticipants div.buttonsStatus,
+.activity-attendance-page table tbody tr td .buttonsStatus {
+    display: flex !important;
+    gap: 8px !important;
+    width: 90% !important;
+    min-width: unset !important;
+    max-width: 100% !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+.activity-attendance-page .buttonsStatus button,
+.activity-attendance-page .buttonsStatus #present,
+.activity-attendance-page .buttonsStatus #short,
+.activity-attendance-page .buttonsStatus #Lateness,
+.activity-attendance-page .tableParticipants .buttonsStatus button,
+.activity-attendance-page div.tableParticipants div.buttonsStatus button,
+.activity-attendance-page table tbody tr td .buttonsStatus button,
+.activity-attendance-page .tableParticipants .buttonsStatus #present,
+.activity-attendance-page .tableParticipants .buttonsStatus #short,
+.activity-attendance-page .tableParticipants .buttonsStatus #Lateness {
+    height: 28px;
+    flex: 1 !important;
+    width: auto !important;
+    min-width: unset !important;
+    max-width: none !important;
+    border: 0.5px solid rgb(208, 208, 208);
+    border-radius: 60px !important;
+    transition: all 0.2s !important;
+    padding: 0 !important;
+    font-size: 0.9em !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+}
+
+.status-circles-mobile {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.status-btn-circle {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.status-btn-circle svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* עיגולי סטטוס במובייל */
+.status-circles-mobile {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.status-btn-circle {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.status-btn-circle svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* שורות בכרטיס פתוח */
+.check-row,
+.like-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.contact-row {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+}
+
+/* ==================== CHECK & LIKE BUTTONS ==================== */
+/* Check button styling */
+.circle-check {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #bbb;
+    cursor: pointer;
+    margin: 8px;
+    transition: color 0.2s;
+}
+
+.circle-check.active {
+    color: #2196f3;
+}
+
+/* Like buttons styling */
+.like-buttons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+}
+
+.thumb-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #bbb;
+    cursor: pointer;
+    margin: 0 4px;
+    transition: color 0.2s;
+}
+
+.thumb-btn.active {
+    color: #1565c0;
+}
+
+/* Transitions */
+.circle-check svg rect,
+.circle-check svg path
+ {
+    transition: all 0.2s;
+}
+
+/* אפור כהה כשלחוץ אחד מהם */
+.circle-check.active:not(.both-active) svg rect,
+.circle-check.active-by-like svg rect {
+    fill: #B0B0B0 !important;
+    stroke: #999 !important;
+}
+
+.circle-check.active:not(.both-active) svg path,
+.circle-check.active-by-like svg path {
+    fill: #555 !important;
+}
+
+
+/* כחול כששניהם לחוצים */
+.circle-check.both-active svg rect {
+    fill: #1565c0 !important;
+    stroke: #1565c0 !important;
+}
+
+.circle-check.both-active svg path {
+    fill: #FFFFFF !important;
+}
+
+
+.icon.filled {
+  fill: #1560A0; /* צבע חדש כשמלא */
+}
+
+/* ==================== NOTE INPUT ==================== */
+.note-edit-input {
+    border: none;
+    outline: none;
+    text-align: right;
+    font-size: 1em;
+    padding: 4px 0;
+    background-color: transparent;
+}
+
+.note-edit-input::placeholder {
+    color: #b0b0b0;
+    font-size: 1em;
+}
+
+.note-cell {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    font-size: 1em;
+    padding: 8px 0;
+    min-height: 40px;
+    justify-content: flex-end;
+}
+
+
+.note-icon {
+    color: #1565c0;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+label {
+    font-weight: 400;
+}
+
+.detail-row.check-row {
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+/* ==================== WHATSAPP ==================== */
+.whatsapp-btn i.fa-whatsapp {
+    color: #fff;
+    background: #25d366;
+    border-radius: 50%;
+    padding: 4px;
+    font-size: 1.3em;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+    vertical-align: middle;
+}
+
+/* ==================== TABLE ==================== */
+.tableParticipants table {
+    width: 100%;
+}
+
+/* Table column widths - 7 columns */
+.activity-attendance-page .tableParticipants th:nth-child(1),
+.activity-attendance-page .tableParticipants td:nth-child(1) {
+    width: 10% !important;
+    min-width: auto !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(2),
+.activity-attendance-page .tableParticipants td:nth-child(2) {
+    width: 12% !important;
+    min-width: auto !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(3),
+.activity-attendance-page .tableParticipants td:nth-child(3) {
+    width: 20% !important;
+    min-width: 280px !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(4),
+.activity-attendance-page .tableParticipants td:nth-child(4) {
+    width: 8% !important;
+    min-width: auto !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(5),
+.activity-attendance-page .tableParticipants td:nth-child(5) {
+    width: 20% !important;
+    min-width: auto !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(6),
+.activity-attendance-page .tableParticipants td:nth-child(6) {
+    width: 10% !important;
+    min-width: auto !important;
+}
+
+.activity-attendance-page .tableParticipants th:nth-child(7),
+.activity-attendance-page .tableParticipants td:nth-child(7) {
+    width: 5% !important;
+    min-width: auto !important;
+    text-align: center !important;
+}
+
+/* ==================== CARDS ==================== */
+/* Top cards container */
+.activity-attendance-page .divContent {
+    display: flex !important;
+    gap: 20px !important;
+    max-width: 1600px !important;
+    margin: 0 0 30px auto !important;
+    /* width: auto !important; */
+    box-sizing: border-box !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+}
+
+.cardTotalNumberOfTrainees,
+.cardAttendanceLevel,
+.cardPresent {
+    flex: 1 !important;
+    min-width: 220px;
+}
+
+/* Files card */
+.statusCard.files-card .card-details p.numberbutton {
+    color: #333;
+    text-shadow: none;
+    font-size: 15px;
+    font-weight: 300;
+}
+
+.card-title-right {
+    display: flex;
+    align-items: flex-start;
+
+}
+
+.files-card {
+    background: #F5F0E8;
+}
+
+.card-details {
+    width: 100%;
+}
+
+.card-title {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    align-items: baseline;
+
+}
+
+.card-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+button.file-action-btn.download-btn {
+    width: 40%;
+}
+
+.participant-details .detail-row {
+    display: flex;
+    align-items: center;
+}
+
+/* כפתורי סטטוס - כללי */
+.status-btn svg path,
+.status-btn-circle svg path {
+    fill: currentColor;
+    transition: fill 0.2s;
+}
+
+
+
+/* ==================== FILE UPLOAD ==================== */
+.file-upload-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.file-upload-link {
+    font-size: 12px;
+    color: #2C3E50;
+    cursor: pointer;
+    padding: 2px 0;
+    text-decoration: none;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+}
+.page-layout{
+    width:100%;
+}
+.cardPresent :hover{
+box-shadow: inset;
+}
+.file-upload-link:hover {
+    /* background: #f8f8f8; */
+}
+
+.file-upload-link i {
+    color: #666;
+    font-size: 18px;
+}
+
+.file-upload-link span {
+    color: #1560A0;
+    font-size: 14px;
+}
+
+.file-counter {
+    background: #666;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin-left: auto;
+}
+
+.download-btn {
+    white-space: nowrap;
+}
+
+.files-header-mobile {
+    display: flex;
+    justify-content: space-between;
+    gap: 70px;
+}
+
+.mobile-numberbutton-files {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    /* gap: 25px; */
+}
+
+.mobile-header-files {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+}
+
+.mobile-numberbutton-download-btn {
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ==================== SEARCH ==================== */
+.search-icon {
+    position: absolute;
+    right: 8px;
+    top: 0.7rem;
+    transform: translateY(0%);
+    font-size: 1rem;
+    color: rgba(0, 70, 109, 1);
+    pointer-events: none;
+    margin: -4px 0px 0px;
+}
+.bigContentDiv {
+    overflow:auto;
+    scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+.bigContentDiv::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.containerPage{
+    margin-right: auto;
+    width: 75vw;
+    margin-left: auto;
+}
+/* ==================== MEDIA QUERIES ==================== */
+@media (max-width: 1200px) {
+ /*
+.activity-attendance-page {
+    width: 75vw;
+    background-color: #ffffff;
+    min-height: 100vh;
+}*/
+
+.tableParticipants{
+        width: 95%;
+}
+.divContent{
+        width: 95% !important;
+}
+    .activity-attendance-page .divContent .statusCard,
+    .cardTotalNumberOfTrainees,
+    .cardAttendanceLevel,
+    .cardPresent {
+        flex: 1 1 calc(50% - 10px) !important;
+        max-width: calc(50% - 10px) !important;
+    }
+    /*
+    .bigContentDiv{
+    margin-right:280px;
+}
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl{
+    margin-right:0px;
+    width:100%;
+}*/
+}
+/*
+@media (max-width: 1000px)  and (min-width:768px){
+    .activity-attendance-page .divContent .statusCard,
+    .cardTotalNumberOfTrainees,
+    .cardAttendanceLevel,
+    .cardPresent {
+        flex: 1 1 calc(50% - 10px) !important;
+        max-width: calc(50% - 10px) !important;
+    }
+
+    .bigContentDiv{
+    margin-right:280px;
+}
+.bigContentDiv .activity-attendance-page{
+    width:65vw;
+}
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl{
+    margin-right:0px;
+    width:100%;
+}
+
+}
+*/
+.numberbutton{
+padding-top: 7px;
+}
+@media (max-width: 768px) {
+    .tableParticipants{
+        
+        width:100%;
+    }
+    .activity-popup-header p {
+        margin-bottom: 0.1rem;
+        /* margin-bottom: 0.75rem; */
+    }
+
+    .activity-header{
+ width: min-content;
+}
+    .activity-attendance-page {
+        width: 95vw;
+    }
+
+    .activity-attendance-page .titleDiv {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .activity-title-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: right;
+    }
+
+    .title-with-tag {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        flex-direction: column;
+    }
+
+    #titleButton {
+        margin-right: 60%;
+        width: 120px;
+        height: 30px;
+    }
+
+    #titleText {
+        font-size: 24px;
+        margin-top: 5px;
+    }
+
+    #topText {
+        font-size: 16px;
+    }
+
+    span.tag {
+        margin-top: 0px;
+    }
+
+    h1,
+    .h1,
+    h2,
+    .h2,
+    h3,
+    .h3 {
+        margin-bottom: 0px;
+    }
+
+    /* Cards grid */
+    .activity-attendance-page .divContent {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 5px !important;
+    }
+
+    .activity-attendance-page .divContent .statusCard {
+        width: 50% !important;
+        min-width: -webkit-fill-available !important;
+    }
+
+    .statusCard.cardTotalNumberOfTrainees {
+        order: -1;
+    }
+
+    .statusCard.cardPresent {
+        order: -1;
+    }
+
+    .statusCard.cardAttendanceLevel {
+        order: -1;
+    }
+
+    .cards-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    .cards-grid .statusCard {
+        width: 100% !important;
+        min-width: unset !important;
+        max-width: unset !important;
+        flex: unset !important;
+    }
+
+    .cards-grid .files-card {
+        min-height: 140px;
+    }
+
+    .cards-grid .statusCard h3 {
+        font-size: 14px;
+    }
+
+    .cards-grid .statusCard .status-card-value {
+        font-size: 1.5em;
+    }
+
+    .card-details h3 {
+        font-size: 14px;
+    }
+
+    .statusCard.cardTotalNumberOfTrainees {
+        display: flex;
+        /* flex-direction: column-reverse; */
+        /* align-items: flex-end; */
+    }
+
+    .statusCard.cardPresent {
+        display: flex;
+        /* flex-direction: column-reverse; */
+        /* align-items: flex-end; */
+    }
+
+    .statusCard.cardAttendanceLevel {
+        display: flex;
+        /* flex-direction: column-reverse; */
+        /* align-items: flex-end; */
+    }
+
+    .statusCard .card-details h3 {
+        font-size: 16px;
+    }
+.statusCard.files-card .card-details h3{
+    margin-top: -20px;
+}
+    .statusCard.files-card .card-details p.numberbutton {
+        padding-top:7px;
+        color: #333;
+        text-shadow: none;
+        font-size: 28px;
+        font-weight: 500;
+    }
+
+    .card-title-right {
+        flex-direction: column;
+        gap: 25px;
+        width: 100%;
+    }
+
+    /* Status buttons */
+    .activity-attendance-page .buttonsStatus,
+    .activity-attendance-page .tableParticipants .buttonsStatus,
+    .activity-attendance-page div.tableParticipants div.buttonsStatus {
+        gap: 4px !important;
+    }
+
+    .activity-attendance-page .buttonsStatus button,
+    .activity-attendance-page .buttonsStatus #present,
+    .activity-attendance-page .buttonsStatus #short,
+    .activity-attendance-page .buttonsStatus #Lateness,
+    .activity-attendance-page .tableParticipants .buttonsStatus button,
+    .activity-attendance-page .tableParticipants .buttonsStatus #present,
+    .activity-attendance-page .tableParticipants .buttonsStatus #short,
+    .activity-attendance-page .tableParticipants .buttonsStatus #Lateness {
+        font-size: 0.8em !important;
+        padding: 6px 4px !important;
+    }
+
+    .phone-cell {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
+    .activity-attendance-page .divContent .statusCard,
+    .cardTotalNumberOfTrainees,
+    .cardAttendanceLevel,
+    .cardPresent {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+    }
+
+    .circle-check {
+        margin: -8px;
+    }
+
+    button.file-action-btn.download-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        /* align-items: center; */
+        padding: 0;
+        justify-content: center;
+        min-width: 40px;
+    }
+/* .circle-check {
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin: 8px;
+  
+    }  */
+
+
+
+    .circle-check:disabled {
+        cursor: not-allowed;
+    }
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl{
+    margin-right: 0px;
+}
+.bigContentDiv{
+    margin-right:20px;
+}
+}

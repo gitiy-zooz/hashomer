@@ -1,0 +1,426 @@
+   * {
+       box-sizing: border-box;
+   }
+
+   body {
+       font-family: 'Heebo', sans-serif;
+       margin: 0;
+       padding: 0;
+       direction: rtl;
+   }
+
+   .page-layout {
+       display: flex;
+       overflow: hidden;
+   }
+
+   .profile-page-container {
+       min-height: 100vh;
+       padding: 40px 60px;
+   }
+
+   .profile-content {
+       display: flex;
+       width: 100%;
+       flex-direction: column;
+       align-content: flex-start;
+   }
+
+   /* Header */
+   .profile-header {
+       margin-bottom: 40px;
+   }
+
+   .profile-header h1 {
+       font-size: 32px;
+       font-weight: 700;
+       color: #333333;
+       margin: 0;
+   }
+
+   /* Profile Picture Section */
+   .profile-picture-section {
+       display: flex;
+       flex-direction: row;
+       align-items: flex-start;
+       gap: 25px;
+   }
+
+   .profile-picture-wrapper {
+       position: relative;
+       margin-bottom: 20px;
+   }
+
+   .profile-picture,
+   .profile-picture-placeholder {
+       width: 120px;
+       height: 120px;
+       border-radius: 50%;
+       object-fit: cover;
+   }
+
+   .profile-picture-actions {
+       display: flex;
+       gap: 12px;
+       flex-direction: column;
+       margin-top: 15px;
+   }
+
+   .btn-change-photo,
+   .btn-delete-photo {
+       padding: 10px 24px;
+       border-radius: 8px;
+       font-size: 16px;
+       font-weight: 500;
+       cursor: pointer;
+       transition: all 0.2s;
+       border: none;
+       font-family: 'Heebo', sans-serif;
+   }
+
+   .btn-change-photo {
+       align-items: anchor-center;
+       background-color: white;
+       border: 1.5px solid #006455 !important;
+       border-radius: 25px;
+       height: 36px;
+       display: flex;
+       justify-content: center;
+   }
+
+   .btn-delete-photo {
+       align-items: anchor-center;
+       background-color: white;
+       border: 1.5px solid #D2D2C6 !important;
+       border-radius: 25px;
+       height: 36px;
+       display: flex;
+       justify-content: center;
+   }
+
+
+   .hidden-file-input {
+       display: none;
+   }
+
+   /* Form Sections */
+   .profile-form-sections {
+       display: flex;
+       flex-direction: column;
+       gap: 32px;
+   }
+
+   .form-section {
+       background-color: #ECECE580;
+       border-radius: 12px;
+       padding: 32px;
+       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+   }
+
+   .section-title {
+       font-size: 20px;
+       font-weight: 600;
+       color: #333333;
+       margin: 0 0 24px 0;
+       padding-bottom: 16px;
+       border-bottom: 2px solid #E6E5E5;
+   }
+
+   .form-field {
+       margin-bottom: 24px;
+       border-bottom: 2px solid #E6E5E5;
+   }
+
+   .form-field:last-child {
+       margin-bottom: 0;
+   }
+
+   .form-field label {
+       display: block;
+       font-size: 14px;
+       font-weight: 500;
+       color: #666666;
+       margin-bottom: 8px;
+   }
+
+   .input-wrapper {
+       position: relative;
+       display: flex;
+       align-items: center;
+       gap: 12px;
+   }
+
+   /* Display value - shown when not editing */
+   .display-value {
+       flex: 1;
+       font-size: 16px;
+       font-family: 'Heebo', sans-serif;
+       color: #333333;
+       padding: 8px 12px;
+   }
+
+   /* Edit controls container */
+   .edit-controls {
+       flex: 1;
+       display: flex;
+       align-items: center;
+       gap: 12px;
+   }
+
+   /* Edit input - half width */
+   .edit-input {
+       width: 50%;
+       border: 1.5px solid transparent;
+       border-radius: 15px;
+       font-size: 16px;
+       font-family: 'Heebo', sans-serif;
+       color: #333333;
+       background-color: white;
+       padding: 8px 12px;
+       transition: all 0.2s ease;
+       margin-bottom: 10px;
+   }
+
+
+
+
+
+   /* Edit actions (save/cancel buttons) next to input */
+   .edit-actions {
+       display: flex;
+       align-items: center;
+       gap: 6px;
+   }
+
+   .edit-icon-btn,
+   .action-btn {
+       width: 40px;
+       height: 40px;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       border: none;
+       background: transparent;
+       cursor: pointer;
+       transition: all 0.2s ease;
+       padding: 0;
+       margin-bottom: 11px
+   }
+
+   .edit-icon-btn:hover:not(:disabled) {
+       opacity: 0.7;
+   }
+
+   .edit-icon-btn:disabled {
+       opacity: 0.4;
+       cursor: not-allowed;
+   }
+
+   .action-btn {
+       border: 1.5px solid #1560A0;
+       border-radius: 50px;
+       background: #1560A0;
+   }
+
+   .action-btn.save-btn:hover {
+       background-color: #F0FBF9;
+       border-color: #0F9581;
+   }
+
+   .action-btn.cancel-btn:hover {
+       background-color: #FEF5F4;
+       border-color: #D93D1E;
+   }
+
+   .action-btn:disabled {
+       opacity: 0.5;
+       cursor: not-allowed;
+   }
+
+   button.action-btn.cancel-btn {
+       background-color: transparent;
+       border-color: #D2D2C6;
+   }
+
+   .field-icon {
+       position: absolute;
+       left: 12px;
+       top: 50%;
+       transform: translateY(-50%);
+       pointer-events: none;
+   }
+
+
+
+   .profile-page-container.main-content {
+       /* width: 100%; */
+       width: 100vw;
+       margin-right: auto;
+       margin-left: auto;
+   }
+
+   .profile-form-sections {
+       width: 100%;
+   }
+
+   .trainees-table-section {
+       margin-top: 35px;
+   }
+
+   /* Mobile Responsive */
+   @media (max-width: 768px) {
+       .profile-page-container {
+           padding: 20px;
+       }
+
+       .profile-page-container.main-content {
+           margin-right: 0;
+       }
+
+       .profile-header h1 {
+           font-size: 24px;
+       }
+
+       .form-section {
+           padding: 24px 20px;
+       }
+
+       .section-title {
+           font-size: 18px;
+       }
+
+       .profile-picture-actions {
+           flex-direction: column;
+           width: 100%;
+       }
+
+       .btn-change-photo,
+       .btn-delete-photo {
+           width: 100%;
+       }
+   }
+
+   /* Group Filter Styles */
+   .group-filter-container {
+       margin-left: 16px;
+       min-width: 150px;
+   }
+
+   .group-filter-select {
+       height: 100%;
+       width: 100%;
+       border: none;
+       background: transparent;
+       padding-right: 12px;
+       padding-left: 30px;
+       cursor: pointer;
+       font-size: 16px;
+       color: #333;
+       appearance: none;
+       -webkit-appearance: none;
+       -moz-appearance: none;
+   }
+
+   .group-filter-select:focus {
+       outline: none;
+   }
+
+   /* Group Filter Custom Dropdown Styles (Copied & Adapted from Activities History) */
+   .group-filter-wrapper {
+       position: relative;
+       margin-left: 16px;
+       /* Spacing from search bar */
+   }
+
+   .group-filter-btn {
+       background-color: white;
+       color: #333;
+       border-radius: 25px;
+       display: flex;
+       justify-content: space-between;
+       align-items: center;
+       gap: 15px;
+       /* Reduced gap for better fit */
+       padding: 8px 16px;
+       border: none;
+       cursor: pointer;
+       font-size: 0.9rem;
+       min-width: 160px;
+       /* Slightly wider */
+       height: 40px;
+       /* Match SearchBar height if possible */
+   }
+
+   .group-filter-btn:hover {
+       background-color: #f8f9fa;
+   }
+
+   .group-filter-dropdown {
+       position: absolute;
+       top: 45px;
+       /* Adjusted top position */
+       left: 0;
+       background: #fff;
+       border: 1px solid #e6e6e6;
+       border-radius: 8px;
+       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+       padding: 8px;
+       z-index: 1000;
+       /* High z-index to overlay table */
+       display: flex;
+       flex-direction: column;
+       gap: 4px;
+       min-width: 180px;
+       max-height: 300px;
+       overflow-y: auto;
+   }
+
+   .group-filter-item {
+       padding: 10px 12px;
+       cursor: pointer;
+       border-radius: 6px;
+       transition: background 0.2s ease;
+       text-align: right;
+       font-size: 14px;
+       color: #333;
+   }
+
+   .group-filter-item:hover,
+   .group-filter-item.selected {
+       background: #f6f8fa;
+       font-weight: 500;
+   }
+
+   .group-filter-icon {
+       width: 12px;
+       height: 12px;
+       transition: transform 0.2s;
+       fill: none;
+       stroke: #00466D;
+       stroke-width: 2;
+       stroke-linecap: round;
+       stroke-linejoin: round;
+   }
+
+   .group-filter-btn.open .group-filter-icon {
+       transform: rotate(180deg);
+   }
+
+   /* Scrollbar for dropdown */
+   .group-filter-dropdown::-webkit-scrollbar {
+       width: 6px;
+   }
+
+   .group-filter-dropdown::-webkit-scrollbar-track {
+       background: #f1f1f1;
+       border-radius: 4px;
+   }
+
+   .group-filter-dropdown::-webkit-scrollbar-thumb {
+       background: #c1c1c1;
+       border-radius: 4px;
+   }
+
+   .group-filter-dropdown::-webkit-scrollbar-thumb:hover {
+       background: #a8a8a8;
+   }

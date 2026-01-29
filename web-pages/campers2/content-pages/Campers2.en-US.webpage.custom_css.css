@@ -1,0 +1,172 @@
+.statusCard {}
+
+.containerPage {
+  width: 75vw;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+
+.divContent {
+  display: flex;
+  gap: 1vw;
+}
+
+.main-content::-webkit-scrollbar {
+  display: none;
+}
+
+.main-content {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+.search-icon{
+  top:38%;
+}
+
+
+
+@media (max-width:768px) {
+  .containerPage {
+    width: 90vw;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .activities-main-container {
+    width: 100vw;
+  }
+
+  .divSideBar {
+    display: block;
+    /* מוצג במסכים גדולים מ-768px */
+  }
+
+
+  .divSideBar {
+    display: none;
+    /* מוסתר כברירת מחדל (מובייל) */
+  }
+}
+
+/* Group Filter Styles */
+.group-filter-container {
+  margin-left: 16px;
+  min-width: 150px;
+}
+
+.group-filter-select {
+  height: 100%;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding-right: 12px;
+  padding-left: 30px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #333;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.group-filter-select:focus {
+  outline: none;
+}
+
+/* Group Filter Custom Dropdown Styles (Copied & Adapted from Activities History) */
+.group-filter-wrapper {
+  position: relative;
+  margin-left: 16px;
+  /* Spacing from search bar */
+}
+
+.group-filter-btn {
+    background-color: white;
+    color: #333;
+    border-radius: 30px;
+    display: flex;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-width: 160px;
+    height: 40px;
+    flex-direction: row-reverse;
+    justify-content:flex-end;
+}
+
+.group-filter-btn:hover {
+  background-color: #f8f9fa;
+}
+
+.group-filter-dropdown {
+  position: absolute;
+  top: 45px;
+  /* Adjusted top position */
+  left: 0;
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  z-index: 1000;
+  /* High z-index to overlay table */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.group-filter-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  text-align: right;
+  font-size: 14px;
+  color: #333;
+}
+
+.group-filter-item:hover,
+.group-filter-item.selected {
+  background: #f6f8fa;
+  font-weight: 500;
+}
+
+.group-filter-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+  fill: none;
+  stroke: #00466D;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.group-filter-btn.open .group-filter-icon {
+  transform: rotate(180deg);
+}
+
+/* Scrollbar for dropdown */
+.group-filter-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.group-filter-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.group-filter-dropdown::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.group-filter-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

@@ -1,0 +1,315 @@
+<!-- chaya 22:09--><!-- Babel CDN only - Power Pages already has React -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Heebo&amp;display=swap" rel="stylesheet" />
+<script type="text/babel">
+
+  const { useState, useEffect, useRef } = React;
+  const { Provider, useSelector, useDispatch } = window.ReactRedux;
+
+  const Input = ({ label, required, helpText, isDisabled, ...props }) => (
+    <div className={`form-control ${isDisabled =="true" ? "disabled" : ""}` }>
+      <label className={required ? "required" : ""}>{label}</label>
+      <input className="selectField" {...props} />
+      {helpText &&
+      <small>{helpText}</small>
+      }
+    </div>
+  );
+
+  const TextArea = ({ label, required, helpText, isDisabled, ...props }) => (
+    <div className={`form-control ${isDisabled =="true" ? "disabled" : ""}` }>
+      <label className={required ? "required" : ""}>{label}</label>
+      <textarea className="selectField" rows="4" {...props} />
+      {helpText &&
+      <small>{helpText}</small>
+      }
+    </div>
+  );
+
+  const Select = ({ label, required, helpText, ...props }) => (
+    <div className="form-control">
+      <label className={required ? "required" : ""}>{label}</label>
+      <select className="selectField" {...props}>
+        <option value="">בחירה מרשימה</option>
+        <option value="opt1">אפשרות 1</option>
+        <option value="opt2">אפשרות 2</option>
+      </select>
+      {helpText &&
+      <small>{helpText}</small>
+      }
+    </div>
+  );
+
+  const YesNo = ({ label, name, value, required, onChange }) => (
+    <div className="yesno form-control">
+      <label className={required ? "required" : ""}>{label}</label>
+      <div>
+        <button type="button" className={value === "yes" ? "active" : ""} onClick={() => onChange({ target: { name, value: "yes" } })}>כן</button>
+        <button type="button" className={value === "no" ? "active" : ""} onClick={() => onChange({ target: { name, value: "no" } })}>לא</button>
+      </div>
+    </div>
+  );
+
+
+  const SafetyEventForm = () => {
+    const [form, setForm] = useState({
+      reporterType: "",
+      district: "",
+      eventDate: "",
+      eventHour: "",
+      eventMinute: "",
+      location: "",
+      injuredName: "",
+      injuredId: "",
+      injuredPhone: "",
+      medicalNeeded: "",
+      medicalDetails: "",
+      insuranceReported: "",
+      insuranceDetails: "",
+      shortDesc: "",
+      fullDesc: "",
+      witnesses: "",
+      files: []
+    });
+
+    const handleChange = (e) => {
+      const { name, value } = e.target;
+      setForm((p) => ({ ...p, [name]: value }));
+    };
+
+    const handleFile = (e) => {
+      setForm((p) => ({ ...p, files: [...e.target.files] }));
+    };
+
+    return (
+      <div className="safetyform-container">
+
+        <form className="safety-form" dir="rtl">
+          <div className="safetySection">
+            <h2 className="form-title">פרטי המדווח</h2>
+            <div className="reporterDetails">
+              <Input label="שם המדווח" type="text" value="אאא" />
+              <Input label="תפקיד" type="text" value="בבב" />
+              <Input label="כתובת מייל" type="text" value="a@a.com" />
+              <Input label="קהילת נוער" type="text" value="גגג" />
+              <Input label="אזור" type="text" value="דד" />
+            </div>
+          </div>
+          <div className="safetySection">
+            <h2 className="form-title">פרטי האירוע</h2>
+            <div className="form-row">
+              <Select label="סיווג האירוע" name="reporterType" value={form.reporterType} onChange={handleChange} required="true"/>
+            </div>
+
+            <div className="form-row">
+              <Select label="תחום האירוע" name="district" value={form.district} onChange={handleChange} required="true" helpText="יש לבחור באופציה הקרובה ביותר"/>
+            </div>
+
+            <div className="form-row">
+              <Input label="תאריך התאונה/אירוע" type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required="true"/>
+              <Select label="שעת האירוע" name="eventHour" value={form.eventHour} onChange={handleChange} required="true"/>
+              <Select label="דקה" name="eventMinute" value={form.eventMinute} onChange={handleChange} required="true"/>
+            </div>
+
+            <div className="form-row">
+              <Input label="מקום וכתובת האירוע" name="location" value={form.location} onChange={handleChange} required="true"/>
+            </div>
+
+            {/* Injured */}
+            <div className="form-row">
+              <Input label="שם הנפגע" name="injuredName" value={form.injuredName} onChange={handleChange} required="true"/>
+              <Input label="ת.ז. הנפגע" name="injuredId" value={form.injuredId} onChange={handleChange} required="true"/>
+            </div>
+
+            {/* Medical */}
+            <YesNo
+              label="האם נדרש טיפול רפואי בשטח?"
+              name="medicalNeeded"
+              value={form.medicalNeeded}
+              required="true"
+              onChange={handleChange}
+            />
+              <Input label="פירוט הטיפול שניתן בשטח" name="medicalDetails" value={form.medicalDetails} required="true" onChange={handleChange} isDisabled={form.medicalNeeded != "yes" ? "true" : "false"} helpText="יש לפרט בקצרה את סוג הטיפול שניתן בשטח ועל ידי איזה בעל תפקיד" />
+
+            {/* Insurance */}
+            <YesNo
+              label="האם נדרש טיפול רפואי בפינוי מהשטח?"
+              name="insuranceReported"
+              value={form.insuranceReported}
+              required="true"
+              onChange={handleChange}
+            />
+            <Input label="פירוט פרטי הפינוי(יש לציין את שם המוקד הרפואי)" name="insuranceDetails" value={form.insuranceDetails} required="true" onChange={handleChange} isDisabled={form.insuranceReported != "yes" ? "true" : "false" } helpText='יש לציין ע"ג איזה רכב פונה הפצוע, לאיזה מוקד רפואי ומה המשך הטיפול בו. אם אין, ניתן לכתוב "אין"'/>
+
+            <Input label="תיאור בקצרה של האירוע" name="shortDesc" value={form.shortDesc} required="true" onChange={handleChange} helpText="שימו לב, תיאור זה צריך להיות חד ושיציג למנהלים את שאירע בלי לציין שמות ונתונים שהוזנו כבר בטופס (עד 15 מילים)" />
+            <TextArea label="תיאור מפורט של האירוע ומסקנות (שימו לב! טופס זה אינו תחקיר האירוע)" name="fullDesc" value={form.fullDesc} onChange={handleChange} helpText="פה ניתן לספר ביתר פירוט את שארע כולל רקע גורמים תורמים ולקח ראשוני"/>
+            <TextArea label="עדים למקרה" name="witnesses" value={form.witnesses} required="true" onChange={handleChange} helpText="פרטים אישיים של עדי ראייה, מגישי עזרה ראשונה והאחראים במקום, כולל גורמי חוץ, תפקידם ומספר טלפון"/>
+          </div>
+          {/* Files */}
+          <div className="safetySection">
+            <h2 className="form-title">העלאת מסמכים</h2>
+            <div className="file-upload">
+              <label>העלאת מסמכים</label>
+              <input type="file" multiple onChange={handleFile} />
+            </div>
+          </div>
+
+          <button type="submit" className="submit-btn">שליחת דיווח</button>
+        </form>
+      </div>
+    );
+  };
+
+
+
+  let SafetyReportFormPage = function ReactApp() {
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 850);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 850);
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          if (typeof window.fetchActivitiesData === 'function') {
+            await dispatch(window.fetchActivitiesData()).unwrap();
+          } else if (typeof fetchActivitiesData === 'function') {
+            await dispatch(fetchActivitiesData()).unwrap();
+          } else {
+            console.warn('fetchActivitiesData function not available on window or local scope');
+          }
+        } catch (error) {
+          console.error('Failed to fetch activities:', error);
+        }
+      };
+
+      fetchData();
+    }, [dispatch]);
+
+    // // ===============================
+    // // Helper functions
+    // // ===============================
+    // const stripTime = (d) => {
+    //   const date = new Date(d);
+    //   date.setHours(0, 0, 0, 0);
+    //   return date;
+    // };
+
+    // const today = stripTime(new Date());
+
+    // const formatDate = (dateStr) => {
+    //   const date = new Date(dateStr);
+    //   return date.toLocaleDateString("he-IL", { day: "numeric", month: "short" });
+    // };
+
+    const { userId, fullName, firstName, roles, currentRoleId, currentKnId, loading: userLoading, error: userError } = useSelector((state) => state?.user);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    return (
+      <>
+        <div className="page-layout">
+          {
+            <>
+              {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile />}
+              {isMobile && isSidebarOpen && (
+                <div className="sidebar-mobile-fullpage">
+                  <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
+                  <SidebarMenu />
+                </div>
+              )}
+            </>
+          }
+
+          <div className={`dashboard-container ${!isMobile ? "main-content" : ""}`} dir="rtl">
+            {/* Header */}
+            <header className="dashboard-header">
+
+              <div className="header-right">
+
+              </div>
+
+              <div className="header-safetyform">
+                {isMobile &&
+                  <div onClick={() => setIsSidebarOpen(true)}>
+                    <svg width="45" height="45" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="45" height="45" rx="22.5" fill="#ECECE5" /><path d="M31.5 22.5C31.5 22.6989 31.421 22.8897 31.2803 23.0303C31.1397 23.171 30.9489 23.25 30.75 23.25H14.25C14.0511 23.25 13.8603 23.171 13.7197 23.0303C13.579 22.8897 13.5 22.6989 13.5 22.5C13.5 22.3011 13.579 22.1103 13.7197 21.9697C13.8603 21.829 14.0511 21.75 14.25 21.75H30.75C30.9489 21.75 31.1397 21.829 31.2803 21.9697C31.421 22.1103 31.5 22.3011 31.5 22.5ZM14.25 17.25H30.75C30.9489 17.25 31.1397 17.171 31.2803 17.0303C31.421 16.8897 31.5 16.6989 31.5 16.5C31.5 16.3011 31.421 16.1103 31.2803 15.9697C31.1397 15.829 30.9489 15.75 30.75 15.75H14.25C14.0511 15.75 13.8603 15.829 13.7197 15.9697C13.579 16.1103 13.5 16.3011 13.5 16.5C13.5 16.6989 13.579 16.8897 13.7197 17.0303C13.8603 17.171 14.0511 17.25 14.25 17.25ZM30.75 27.75H14.25C14.0511 27.75 13.8603 27.829 13.7197 27.9697C13.579 28.1103 13.5 28.3011 13.5 28.5C13.5 28.6989 13.579 28.8897 13.7197 29.0303C13.8603 29.171 14.0511 29.25 14.25 29.25H30.75C30.9489 29.25 31.1397 29.171 31.2803 29.0303C31.421 28.8897 31.5 28.6989 31.5 28.5C31.5 28.3011 31.421 28.1103 31.2803 27.9697C31.1397 27.829 30.9489 27.75 30.75 27.75Z" fill="black" /></svg>
+                    <svg className="notification-badge notification-badge-mobile" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.002 1C18.0783 1 23.0047 5.9257 23.0049 12.002C23.0049 18.0784 18.0784 23.0049 12.002 23.0049C5.9257 23.0047 1 18.0783 1 12.002C1.00022 5.92584 5.92584 1.00022 12.002 1Z" fill="#C86338" stroke="white" stroke-width="2" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1553 6.99173L11.1633 6.98031L11.7672 6.10015C11.8553 5.97159 12.031 5.93783 12.1596 6.02601C12.1948 6.05018 12.2227 6.08081 12.2431 6.1153L12.8444 6.99168L12.851 7.00043C12.8932 7.05463 12.9515 7.10926 13.0156 7.15812C13.0901 7.21467 13.1716 7.26256 13.2455 7.29254C13.4303 7.36774 13.6225 7.36066 13.809 7.30716C14.0171 7.2473 14.2204 7.13119 14.4029 7.00157L15.115 6.4959C15.2422 6.40569 15.4183 6.4347 15.5085 6.56184C15.5223 6.58116 15.5332 6.60164 15.5415 6.62273L15.9219 7.38C16.2279 7.9889 16.4873 8.71462 16.6762 9.45252C16.8672 10.1991 16.9883 10.9667 17.0142 11.647C17.075 13.2455 16.676 14.5838 15.8822 15.6405C15.0692 16.7229 13.847 17.5007 12.2849 17.9513L12.0777 18.011C12.0153 18.0291 11.9519 18.0259 11.8958 18.0035L11.7147 17.9512C10.1528 17.5007 8.93042 16.7228 8.11741 15.6404C7.32376 14.5839 6.92482 13.2454 6.98552 11.647C7.01134 10.9667 7.1324 10.1991 7.32351 9.4526C7.51238 8.71457 7.77189 7.98898 8.07781 7.38006L8.47002 6.59956C8.53994 6.4603 8.70888 6.40308 8.84825 6.473C8.86801 6.483 8.8861 6.49493 8.90236 6.50852L9.59687 7.0015C9.77937 7.13111 9.98261 7.24736 10.1907 7.30711C10.3772 7.36066 10.5694 7.36767 10.7543 7.29249C10.8282 7.26242 10.9098 7.21462 10.9842 7.15804C11.0517 7.10666 11.1127 7.04873 11.1553 6.99173Z" fill="#FFE07D" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.9998 8.45764C12.978 8.45764 13.8636 8.85416 14.5046 9.49521C15.1456 10.1362 15.5422 11.0217 15.5422 12C15.5422 12.9782 15.1457 13.8637 14.5046 14.5047C13.8637 15.1458 12.978 15.5424 11.9998 15.5424C11.0217 15.5424 10.1361 15.1458 9.49508 14.5047C8.85415 13.8638 8.45752 12.9782 8.45752 12C8.45752 11.0219 8.85404 10.1362 9.49508 9.49521C10.1361 8.85413 11.0217 8.45764 11.9998 8.45764Z" fill="#FFC269" /><path fill-rule="evenodd" clip-rule="evenodd" d="M12.9081 10.9632L14.2008 11.2431C14.3531 11.2761 14.45 11.4265 14.417 11.5789C14.4044 11.6371 14.3746 11.6873 14.334 11.725L13.47 12.6924L13.6039 14.0085C13.6196 14.1636 13.5066 14.302 13.3514 14.3178C13.296 14.3235 13.2426 14.3126 13.1962 14.2892L11.9992 13.7621L10.7893 14.2955C10.6466 14.3582 10.48 14.2935 10.4171 14.1508C10.3935 14.0973 10.3879 14.0406 10.3977 13.987L10.5285 12.6926L9.6478 11.7067C9.62902 11.7198 9.48523 11.4729 9.6694 11.3086C9.71044 11.2719 9.75938 11.2495 9.81002 11.2408L11.0905 10.9633L11.7553 9.8208C11.8338 9.68605 12.0066 9.64058 12.1414 9.71898C12.191 9.74785 12.2286 9.78973 12.2523 9.83778L12.9081 10.9632Z" fill="#ECECE5" /><path fill-rule="evenodd" clip-rule="evenodd" d="M9.89213 9.99519C10.5331 9.35411 11.4188 8.95762 12.3969 8.95762C13.3751 8.95762 14.2606 9.35414 14.9017 9.99519C14.9222 10.0158 14.9426 10.0366 14.9627 10.0577C14.8293 9.85473 14.6757 9.66625 14.5046 9.49517C13.8636 8.85413 12.978 8.45761 11.9998 8.45761C11.0217 8.45761 10.1361 8.8541 9.49508 9.49517C8.85404 10.1362 8.45752 11.0218 8.45752 11.9999C8.45752 12.9467 8.82908 13.8068 9.43408 14.4422C9.06774 13.8845 8.85456 13.2171 8.85456 12.4999C8.85456 11.5218 9.25108 10.6362 9.89213 9.99519Z" fill="#FFB668" /></svg>
+                  </div>
+                }
+                <h1 className="page-title">דיווח אירוע בטיחות</h1>
+
+              </div>
+            </header>
+
+
+            {/* Main Content */}
+            <div className="pageContent">
+              <SafetyEventForm />
+
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+
+  // Wait for Redux store to be available and render the app
+  const renderApp = () => {
+    const rootElement = document.getElementById("root");
+
+    // Use global store if local store is not available
+    const storeToUse = typeof store !== 'undefined' ? store : window.store;
+
+    if (rootElement && !rootElement._reactRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      rootElement._reactRoot = root;
+      root.render(
+        <Provider store={storeToUse}>
+          <SafetyReportFormPage />
+        </Provider>
+      );
+    } else if (rootElement && rootElement._reactRoot) {
+      // Use existing root
+      rootElement._reactRoot.render(
+        <Provider store={storeToUse}>
+          <SafetyReportFormPage />
+        </Provider>
+      );
+    }
+  };
+
+  // Start the render process
+  // renderApp();
+
+
+  const rootElement = document.getElementById("root");
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <Provider store={store}>
+      <SafetyReportFormPage />
+    </Provider>
+  );
+</script>
+<div classname="sectionBlockLayout">
+  <div classname="container container-full containerPage">
+    <div>
+      <div id="root"></div>
+    </div>
+  </div>
+</div>
+<div class="row sectionBlockLayout text-start"
+  style="display: flex; flex-wrap: wrap; margin: 0px; min-height: auto; padding: 8px;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-12 columnBlockLayout"
+      style="flex-grow: 1; display: flex; flex-direction: column; min-width: 250px;"></div>
+  </div>
+</div>

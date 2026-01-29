@@ -1,0 +1,191 @@
+<script id="ReduxParticipantsActivitySlice.js">
+const fetchParticipantsData = createAsyncThunk(
+  "participants/fetchData",
+  async ({ activityId }) => {
+    return new Promise((resolve, reject) => {
+      // First, fetch participants for this specific activity
+      webapi.safeAjax({
+        type: "GET",
+        url: `/_api/zooz_attendances?$expand=zooz_contact($select=emailaddress1,mobilephone,fullname,contactid)&$filter=_zooz_activity_value eq '${activityId}'`,
+        contentType: "application/json",
+        headers: {
+          "Prefer": "odata.include-annotations=*"
+        },
+        success: function (data) {
+          const participantsData = data.value;
+          
+          // Now fetch ALL attendances for the current month to calculate percentages
+          webapi.safeAjax({
+            type: "GET",
+            url: "/_api/zooz_attendances?$expand=zooz_activity($select=zooz_from)&$select=_zooz_contact_value,zooz_status_p",
+            contentType: "application/json",
+            success: function(attendanceData) {
+              const attendances = attendanceData.value || [];
+              console.log("All attendance data fetched for percentage calculation:", attendances.length, "records");
+              
+              // Get current month date range
+              const today = new Date();
+              const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+              
+              // Filter attendance for current month
+              const currentMonthAttendances = attendances.filter(a => {
+                if (!a.zooz_activity || !a.zooz_activity.zooz_from) return false;
+                const activityDate = new Date(a.zooz_activity.zooz_from);
+                return activityDate >= firstDayOfMonth && activityDate <= today;
+              });
+              
+              console.log("Current month attendances:", currentMonthAttendances.length);
+              
+              // Map participants and calculate their attendance percentage
+              const participants = participantsData.map((result) => {
+                // Attendance ID
+                const id = result["zooz_attendanceid"];
+                
+                // Attendance fields
+                const statusRaw = result["zooz_status_p@OData.Community.Display.V1.FormattedValue"] || result["zooz_status_p"] || "";
+                
+                // Map Dataverse status to Hebrew for UI
+                let status = "";
+                if (statusRaw === "696480000" || statusRaw === 696480000) status = "נוכח";
+                else if (statusRaw === "696480001" || statusRaw === 696480001) status = "חיסור";
+                else if (statusRaw === "696480002" || statusRaw === 696480002) status = "איחור";
+                else status = statusRaw;
+                
+                const note = result["zooz_notes"] || "";
+                const estimate = result["zooz_estimate@OData.Community.Display.V1.FormattedValue"] || result["zooz_estimate"] || "";
+                const arrived = result["zooz_arrived"] || 0;
+                const attendanceRate = result["zooz_attendance_rate"] || 0;
+
+                // Contact Info (expanded)
+                const contact = result["zooz_contact"] || {};
+                const contactId = contact["contactid"] || "";
+                const fullname = contact["fullname"] || "";
+                const phone = contact["mobilephone"] || "";
+                const email = contact["emailaddress1"] || "";
+                
+                // Calculate attendance percentage for this contact (same logic as TraineesSlice)
+                const contactAttendances = currentMonthAttendances.filter(a => a._zooz_contact_value === contactId);
+                let attendancePercent = 0;
+                let attended = 0;
+                
+                if (contactAttendances.length > 0) {
+                  attended = contactAttendances.filter(a => 
+                    a.zooz_status_p === "696480000" || a.zooz_status_p === "696480002" ||
+                    a.zooz_status_p === 696480000 || a.zooz_status_p === 696480002
+                  ).length;
+                  attendancePercent = Math.round((attended / contactAttendances.length) * 100);
+                }
+                
+                console.log(`Contact ${fullname}: ${attended}/${contactAttendances.length} = ${attendancePercent}%`);
+
+                return {
+                  id,
+                  contactId,
+                  name: fullname,
+                  fullname,
+                  phone,
+                  email,
+                  attendancePercent: attendancePercent.toString(),
+                  
+                  // Attendance-specific fields
+                  status,
+                  note,
+                  estimate,
+                  arrived,
+                  attendanceRate,
+                  
+                  // Legacy fields
+                  checked: arrived === 1
+                };
+              });
+
+              console.log("Participants with calculated attendance:", participants);
+              resolve(participants);
+            },
+            error: function(xhr) {
+              console.error("Attendance API Error:", xhr);
+              // Still return participants without percentage calculation
+              const participants = participantsData.map((result) => {
+                const id = result["zooz_attendanceid"];
+                const statusRaw = result["zooz_status_p@OData.Community.Display.V1.FormattedValue"] || result["zooz_status_p"] || "";
+                let status = "";
+                if (statusRaw === "696480000" || statusRaw === 696480000) status = "נוכח";
+                else if (statusRaw === "696480001" || statusRaw === 696480001) status = "חיסור";
+                else if (statusRaw === "696480002" || statusRaw === 696480002) status = "איחור";
+                else status = statusRaw;
+                
+                const contact = result["zooz_contact"] || {};
+                return {
+                  id,
+                  contactId: contact["contactid"] || "",
+                  name: contact["fullname"] || "",
+                  fullname: contact["fullname"] || "",
+                  phone: contact["mobilephone"] || "",
+                  email: contact["emailaddress1"] || "",
+                  attendancePercent: "0",
+                  status,
+                  note: result["zooz_notes"] || "",
+                  estimate: result["zooz_estimate@OData.Community.Display.V1.FormattedValue"] || "",
+                  arrived: result["zooz_arrived"] || 0,
+                  attendanceRate: result["zooz_attendance_rate"] || 0,
+                  checked: (result["zooz_arrived"] || 0) === 1
+                };
+              });
+              resolve(participants);
+            }
+          });
+        },
+        error: function (xhr) {
+          console.error("Participants API Error:", xhr);
+          reject("Failed to fetch participants");
+        }
+      });
+    });
+  }
+);
+
+const participantsSlice = createSlice({
+  name: "participants",
+  initialState: {
+    data: [],
+    status: "idle"
+  },
+  reducers: {
+    updateParticipantNote: (state, action) => {
+      const { id, note } = action.payload;
+      const p = state.data.find(x => x.id === id);
+      if (p) p.note = note;
+    },
+    toggleParticipantCheck: (state, action) => {
+      const { id } = action.payload;
+      const p = state.data.find(x => x.id === id);
+      if (p) p.checked = !p.checked;
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchParticipantsData.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(fetchParticipantsData.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.data = action.payload;
+      })
+      .addCase(fetchParticipantsData.rejected, (state) => {
+        state.status = "failed";
+      });
+  },
+});
+
+// Export actions
+const { updateParticipantNote, toggleParticipantCheck } = participantsSlice.actions;
+
+// Attach to window (Power Pages needs this)
+window.participantsSlice = participantsSlice;
+window.fetchParticipantsData = fetchParticipantsData;
+window.updateParticipantNote = updateParticipantNote;
+window.toggleParticipantCheck = toggleParticipantCheck;
+
+</script>
+
+</script>

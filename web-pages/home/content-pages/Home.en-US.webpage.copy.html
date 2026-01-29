@@ -1,0 +1,736 @@
+<!-- chaya 26/01-->
+<!-- Babel CDN only - Power Pages already has React -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- FullCalendar CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar/index.global.min.js"></script>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Heebo&amp;display=swap" rel="stylesheet" />
+<script type="text/babel">
+
+  const { useState, useEffect, useRef } = React;
+  const { Provider, useSelector, useDispatch } = window.ReactRedux;
+
+  // ============================================
+  // ACTIVITIES API & FUNCTIONS
+  // ============================================
+
+  const RecentActivities = () => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 850);
+
+    // Use global selectors from userSlice - separate calls to prevent unnecessary re-renders
+    const activities = useSelector(state => state?.activities?.data || []);
+    const canMarkAttendance = useSelector(state => {
+      const user = state?.user?.user;
+      const result = user?.contactType == 14 || Number(user?.contactType) === 14;
+      console.log('🟢 RecentActivities - canMarkAttendance:', result, 'user:', user);
+      return result;
+    });
+
+    const dispatch = useDispatch();
+
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 850);
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+
+
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          if (typeof window.fetchActivitiesData === 'function') {
+            await dispatch(window.fetchActivitiesData()).unwrap();
+          } else if (typeof fetchActivitiesData === 'function') {
+            await dispatch(fetchActivitiesData()).unwrap();
+          } else {
+            console.warn('fetchActivitiesData function not available on window or local scope');
+          }
+        } catch (error) {
+          console.error('Failed to fetch activities:', error);
+        }
+      };
+
+      fetchData();
+    }, [dispatch]);
+
+
+
+    // ===============================
+    // פונקציות עזר
+    // ===============================
+    const stripTime = (d) => {
+      const date = new Date(d);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+    const today = stripTime(new Date());
+
+    const formatDate = (dateStr) => {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("he-IL", { day: "numeric", month: "short" });
+    };
+
+    // ===============================
+    // סינון פעילויות קרובות לפי startDate
+    // ===============================
+    const upcoming = activities
+      .filter((a) => stripTime(a.startDate) >= today)
+      .sort((a, b) => stripTime(a.startDate) - stripTime(b.startDate))
+      .slice(0, 3); // שלוש פעילויות קרובות
+
+    const handleShowAllActivities = () => {
+      window.location.href = '/Activity/';
+    };
+
+    return (
+      <div className="recent-activities">
+        <div className="activities-header">
+          <div className="titleDiv">
+            <p id="activityText">פעילויות קרובות שלי</p>
+          </div>
+          <div className="buttonDiv">
+            <button className="link-button" onClick={handleShowAllActivities}>לכל הפעילויות ›</button>        </div>
+        </div>
+        <div className="activities-container">
+          <ul>
+            {upcoming.map((activity, index) => {
+              const isToday =
+                new Date(activity.startDate).toDateString() === today.toDateString();
+
+              return (
+                <li
+                  key={activity.id}
+                  className="activity-item"
+                  onClick={() => window.location.href = `/activity-detail?id=${activity.id}`}
+                >
+                  {activity.eventType === 'weekly' ? (
+                    <svg width="6" height="46" viewBox="0 0 6 46" fill="none">
+                      <rect x="0.61084" y="0.353394" width="5" height="45" rx="2.5" fill="#006455" />
+                    </svg>
+                  ) : activity.eventType === 'special' ? (
+                    <svg width="6" height="46" viewBox="0 0 6 46" fill="none">
+                      <rect x="0.61084" y="0.353394" width="5" height="45" rx="2.5" fill="#EBA220" />
+                    </svg>
+                  ) : (
+                    <svg width="6" height="46" viewBox="0 0 6 46" fill="none">
+                      <rect x="0.61084" y="0.353394" width="5" height="45" rx="2.5" fill="#F7E3B2" />
+                    </svg>
+                  )}
+                  <div className={`${index === 0 ? "first-activity" : ""}`}>
+                    <div className="activity-box">
+                      <div>
+                        <span className="activity-title">{activity.title}</span>
+                        <Tag tag={activity.tag} />
+                        {
+                          // <span className={`tag event-tag-${activity.eventType}`}></span>
+                        }
+                        {!isMobile && isToday && <span className="tag today-tag">היום</span>}
+                      </div>
+                      <div>
+                        <span className="activity-details">{formatDate(activity.startDate)} • </span>
+                        <span className="activity-details">{activity.branchName}</span>
+                      </div>
+                    </div>
+                    {/*
+                      SECURITY NOTE: Client-side permission check only for UI.
+                      Server-side validation MUST verify user is instructor before allowing attendance marking.
+                      Never rely solely on client-side checks for authorization!
+                    */}
+                    {index === 0 && canMarkAttendance && (
+                      // <div className="activities-links">
+                      <button
+                        className="attendance-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/attendance?id=${activity.id}`;
+                        }}
+                      >בדיקת נוכחות</button>
+                      // </div>
+                    )}
+                  </div>
+
+
+                </li>
+              );
+            })}
+
+          </ul>
+
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================
+  // CALENDAR COMPONENT & FUNCTIONS
+  // ============================================
+
+  const CalendarSection = ({ isMobile }) => {
+    return (
+      <div className="calendar-section">
+        <div className="section-header">
+          <h3>לוח שנה תנועתי {!isMobile && new Date().getFullYear()}</h3>
+          <div className="my-activities">
+            <label className="switch">
+              <input type="checkbox" />
+              <span className="slider"></span>
+            </label>
+            <span>רק פעילויות שלי</span>
+          </div>
+        </div>
+        <ActivityCalendar />
+      </div>
+    )
+  }
+
+  const TraineesStats = () => {
+    const dispatch = useDispatch();
+    const trainees = useSelector((state) => state?.trainees?.data || []);
+
+
+    useEffect(() => {
+      // Check if fetchTraineesData is available
+      if (typeof fetchTraineesData === 'function') {
+        dispatch(fetchTraineesData());
+      } else if (typeof fetchTraineesData === 'function') {
+        dispatch(fetchTraineesData());
+      } else {
+        console.warn('fetchTraineesData function not available');
+      }
+    }, [dispatch]);
+
+    const handleShowTrainees = () => {
+      window.location.href = '/Campers2/';
+
+    };
+
+    return (
+      <>
+        <div className="trainees-stats">
+          <h3>{trainees.length}</h3>
+          <p>חניכים וחניכות</p>
+          <button className="link-button" onClick={handleShowTrainees}>
+            לרשימת החניכים ›
+          </button>
+        </div>
+        <img src="/image 14.png" alt="image14" id="img14" />
+      </>
+    );
+  };
+
+  // Calculate overall attendance percentage for past month
+  const useOverallAttendanceStats = () => {
+    const [attendancePercent, setAttendancePercent] = React.useState("0%");
+
+    React.useEffect(() => {
+      const calculateAttendance = async () => {
+        if (typeof webapi === 'undefined' || typeof webapi.safeAjax !== 'function') {
+          setAttendancePercent("N/A");
+          return;
+        }
+
+        try {
+          // Get current month date range
+          const today = new Date();
+          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+          // Fetch all attendance records with activity data
+          const response = await new Promise((resolve, reject) => {
+            webapi.safeAjax({
+              type: "GET",
+              url: "/_api/zooz_attendances?" + "$" + "expand=zooz_activity(" + "$" + "select=zooz_from)",
+              contentType: "application/json",
+              success: (data) => resolve(data),
+              error: (xhr) => reject(xhr)
+            });
+          });
+
+          const allAttendances = response.value || [];
+
+          // Filter by current month in JavaScript
+          const attendances = allAttendances.filter(a => {
+            if (!a._zooz_activity_value) return false; // No linked activity
+
+            // If we have expanded activity data with date
+            if (a.zooz_activity && a.zooz_activity.zooz_from) {
+              const activityDate = new Date(a.zooz_activity.zooz_from);
+              return activityDate >= firstDayOfMonth && activityDate <= today;
+            }
+
+            return true; // Include if we can't determine date
+          });
+
+          if (attendances.length === 0) {
+            setAttendancePercent("0%");
+            return;
+          }
+
+          // Count Present (696480000) and Late (696480002) as attended
+          const attended = attendances.filter(a =>
+            a.zooz_status_p === "696480000" || a.zooz_status_p === "696480002" ||
+            a.zooz_status_p === 696480000 || a.zooz_status_p === 696480002
+          ).length;
+
+          const percentage = Math.round((attended / attendances.length) * 100);
+          setAttendancePercent(percentage + "%");
+        } catch (error) {
+          setAttendancePercent("N/A");
+        }
+      };
+
+      calculateAttendance();
+    }, []);
+
+    return attendancePercent;
+  };
+
+  let HomePageNew = function ReactApp() {
+    const dispatch = useDispatch();
+    const isMobile = mobileCheck();
+    const { userId, fullName, firstName, roles, currentRoleId, currentKnId, currentRole, currentGroupId, loading: userLoading, error: userError } = useSelector((state) => state?.user);
+    const { groups, leaders, loading: relatedLoading, error: relatedError } = useSelector((state) => state?.related);
+    const { activities, loading: activitiesLoading, error: activitiesError } = useSelector((state) => state?.activities);
+    const isCoordinator = roles.length > 0 && roles.some(role => role.id === window.COORDINATOR_GUID);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // If currentKnId is not set, use the first available KN from roles
+    const activeKnId = currentKnId || (roles && Object.keys(roles).length > 0 ? Object.keys(roles)[0] : null);
+    const currentKnData = (roles && activeKnId && roles[activeKnId]) ? roles[activeKnId] : null;
+    const locationParts = currentKnData
+      ? [currentKnData.district, currentKnData.regionalCouncil, currentKnData.area].filter(Boolean)
+      : [];
+    const locationSubtitle = locationParts.length > 0
+      ? locationParts.join(' • ')
+      : ' ';
+
+
+    const activeLeadersCount = currentRole === "coordinator" ? leaders[currentKnId]?.length : 0 || 0;
+
+    console.log("→ activities: ", activities);
+    console.log("→ currentKnId: ", currentKnId);
+    console.log("→ currentRole: ", currentRole);
+    console.log("→ currentGroupId: ", currentGroupId);
+
+    // Normalize activities to a flat array
+    const activitiesData =
+      currentRole === "coordinator"
+        ? Object.values(activities[currentKnId] || {}).flat()
+        : currentRole === "leader"
+          ? activities[currentKnId]?.[currentGroupId] || []
+          : [];
+
+    console.log("→ activitiesData: ", activitiesData);
+
+
+    // Calculate activities in next calendar month
+    const activitiesNextMonth =
+      activitiesData.filter(activity => {
+        const activityDate = new Date(activity.startDate);
+        const today = new Date();
+
+        const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth() + 1;
+        const nextMonthYear = today.getMonth() === 11
+          ? today.getFullYear() + 1
+          : today.getFullYear();
+
+        return (
+          activityDate.getMonth() === nextMonth &&
+          activityDate.getFullYear() === nextMonthYear
+        );
+      }).length;
+    
+
+    // Get overall attendance percentage using custom hook
+    // const overallAttendance = useOverallAttendanceStats();
+    const overallAttendance = "10%";
+
+    // useEffect(() => {
+    //   if (!dispatch) return
+    //   if (Object.keys(roles).length === 0 && !userLoading.roles) {
+    //     dispatch(fetchUserRoles());
+    //   }
+    // }, [dispatch, userLoading, roles]);
+
+    useEffect(() => {
+      if (!dispatch) return
+      if (Object.keys(roles).length != 0 && Object.keys(groups).length === 0 && !relatedLoading.groups) {
+        const userGroupsId = Object.values(roles)
+          .flatMap(role => role.leaderLayers || [])
+          .map(layer => layer.groupId)
+          .filter(Boolean);
+        const uniqueGroupsIds = [...new Set(userGroupsId)];
+        if (Object.keys(groups).length === 0 && !relatedLoading.groups && uniqueGroupsIds.length > 0) {
+          dispatch(fetchUserGroupsWithMembers(uniqueGroupsIds));
+        }
+      }
+    }, [dispatch, relatedLoading, groups, roles]);
+
+    useEffect(() => {
+      if (Object.keys(leaders).length === 0 && !relatedLoading.leaders) {
+        dispatch(fetchLeaders());
+      }
+    }, [dispatch, relatedLoading, leaders]);
+
+    useEffect(() => {
+      if (Object.keys(activities).length === 0 && !activitiesLoading.activities) {
+        // dispatch(fetchActivities());
+        debugger
+        fetchActivities();
+      }
+    }, [dispatch, activitiesLoading, activities]);
+
+    const isLoading = userLoading?.roles || activitiesLoading?.activities || relatedLoading?.groups || relatedLoading?.leaders;
+
+    if (isLoading) {
+      return <Loader />;
+    }
+
+
+    return (
+      <>
+        <div className="page-layout">
+
+          {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile />}
+          {isMobile && isSidebarOpen && (
+            <div className="sidebar-mobile-fullpage">
+              <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
+              <SidebarMenu />
+            </div>
+          )}
+
+          <div className={`dashboard-container ${!isMobile ? "main-content" : ""}`} dir="rtl">
+            {/* Header */}
+            <header className="dashboard-header">
+
+              <div className="header-right">
+
+              </div>
+
+              <div className="header-home">
+                {isMobile &&
+                  <div onClick={() => setIsSidebarOpen(true)}>
+                    <svg width="45" height="45" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="45" height="45" rx="22.5" fill="#ECECE5" /><path d="M31.5 22.5C31.5 22.6989 31.421 22.8897 31.2803 23.0303C31.1397 23.171 30.9489 23.25 30.75 23.25H14.25C14.0511 23.25 13.8603 23.171 13.7197 23.0303C13.579 22.8897 13.5 22.6989 13.5 22.5C13.5 22.3011 13.579 22.1103 13.7197 21.9697C13.8603 21.829 14.0511 21.75 14.25 21.75H30.75C30.9489 21.75 31.1397 21.829 31.2803 21.9697C31.421 22.1103 31.5 22.3011 31.5 22.5ZM14.25 17.25H30.75C30.9489 17.25 31.1397 17.171 31.2803 17.0303C31.421 16.8897 31.5 16.6989 31.5 16.5C31.5 16.3011 31.421 16.1103 31.2803 15.9697C31.1397 15.829 30.9489 15.75 30.75 15.75H14.25C14.0511 15.75 13.8603 15.829 13.7197 15.9697C13.579 16.1103 13.5 16.3011 13.5 16.5C13.5 16.6989 13.579 16.8897 13.7197 17.0303C13.8603 17.171 14.0511 17.25 14.25 17.25ZM30.75 27.75H14.25C14.0511 27.75 13.8603 27.829 13.7197 27.9697C13.579 28.1103 13.5 28.3011 13.5 28.5C13.5 28.6989 13.579 28.8897 13.7197 29.0303C13.8603 29.171 14.0511 29.25 14.25 29.25H30.75C30.9489 29.25 31.1397 29.171 31.2803 29.0303C31.421 28.8897 31.5 28.6989 31.5 28.5C31.5 28.3011 31.421 28.1103 31.2803 27.9697C31.1397 27.829 30.9489 27.75 30.75 27.75Z" fill="black" /></svg>
+                    <svg className="notification-badge notification-badge-mobile" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.002 1C18.0783 1 23.0047 5.9257 23.0049 12.002C23.0049 18.0784 18.0784 23.0049 12.002 23.0049C5.9257 23.0047 1 18.0783 1 12.002C1.00022 5.92584 5.92584 1.00022 12.002 1Z" fill="#C86338" stroke="white" stroke-width="2" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1553 6.99173L11.1633 6.98031L11.7672 6.10015C11.8553 5.97159 12.031 5.93783 12.1596 6.02601C12.1948 6.05018 12.2227 6.08081 12.2431 6.1153L12.8444 6.99168L12.851 7.00043C12.8932 7.05463 12.9515 7.10926 13.0156 7.15812C13.0901 7.21467 13.1716 7.26256 13.2455 7.29254C13.4303 7.36774 13.6225 7.36066 13.809 7.30716C14.0171 7.2473 14.2204 7.13119 14.4029 7.00157L15.115 6.4959C15.2422 6.40569 15.4183 6.4347 15.5085 6.56184C15.5223 6.58116 15.5332 6.60164 15.5415 6.62273L15.9219 7.38C16.2279 7.9889 16.4873 8.71462 16.6762 9.45252C16.8672 10.1991 16.9883 10.9667 17.0142 11.647C17.075 13.2455 16.676 14.5838 15.8822 15.6405C15.0692 16.7229 13.847 17.5007 12.2849 17.9513L12.0777 18.011C12.0153 18.0291 11.9519 18.0259 11.8958 18.0035L11.7147 17.9512C10.1528 17.5007 8.93042 16.7228 8.11741 15.6404C7.32376 14.5839 6.92482 13.2454 6.98552 11.647C7.01134 10.9667 7.1324 10.1991 7.32351 9.4526C7.51238 8.71457 7.77189 7.98898 8.07781 7.38006L8.47002 6.59956C8.53994 6.4603 8.70888 6.40308 8.84825 6.473C8.86801 6.483 8.8861 6.49493 8.90236 6.50852L9.59687 7.0015C9.77937 7.13111 9.98261 7.24736 10.1907 7.30711C10.3772 7.36066 10.5694 7.36767 10.7543 7.29249C10.8282 7.26242 10.9098 7.21462 10.9842 7.15804C11.0517 7.10666 11.1127 7.04873 11.1553 6.99173Z" fill="#FFE07D" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.9998 8.45764C12.978 8.45764 13.8636 8.85416 14.5046 9.49521C15.1456 10.1362 15.5422 11.0217 15.5422 12C15.5422 12.9782 15.1457 13.8637 14.5046 14.5047C13.8637 15.1458 12.978 15.5424 11.9998 15.5424C11.0217 15.5424 10.1361 15.1458 9.49508 14.5047C8.85415 13.8638 8.45752 12.9782 8.45752 12C8.45752 11.0219 8.85404 10.1362 9.49508 9.49521C10.1361 8.85413 11.0217 8.45764 11.9998 8.45764Z" fill="#FFC269" /><path fill-rule="evenodd" clip-rule="evenodd" d="M12.9081 10.9632L14.2008 11.2431C14.3531 11.2761 14.45 11.4265 14.417 11.5789C14.4044 11.6371 14.3746 11.6873 14.334 11.725L13.47 12.6924L13.6039 14.0085C13.6196 14.1636 13.5066 14.302 13.3514 14.3178C13.296 14.3235 13.2426 14.3126 13.1962 14.2892L11.9992 13.7621L10.7893 14.2955C10.6466 14.3582 10.48 14.2935 10.4171 14.1508C10.3935 14.0973 10.3879 14.0406 10.3977 13.987L10.5285 12.6926L9.6478 11.7067C9.62902 11.7198 9.48523 11.4729 9.6694 11.3086C9.71044 11.2719 9.75938 11.2495 9.81002 11.2408L11.0905 10.9633L11.7553 9.8208C11.8338 9.68605 12.0066 9.64058 12.1414 9.71898C12.191 9.74785 12.2286 9.78973 12.2523 9.83778L12.9081 10.9632Z" fill="#ECECE5" /><path fill-rule="evenodd" clip-rule="evenodd" d="M9.89213 9.99519C10.5331 9.35411 11.4188 8.95762 12.3969 8.95762C13.3751 8.95762 14.2606 9.35414 14.9017 9.99519C14.9222 10.0158 14.9426 10.0366 14.9627 10.0577C14.8293 9.85473 14.6757 9.66625 14.5046 9.49517C13.8636 8.85413 12.978 8.45761 11.9998 8.45761C11.0217 8.45761 10.1361 8.8541 9.49508 9.49517C8.85404 10.1362 8.45752 11.0218 8.45752 11.9999C8.45752 12.9467 8.82908 13.8068 9.43408 14.4422C9.06774 13.8845 8.85456 13.2171 8.85456 12.4999C8.85456 11.5218 9.25108 10.6362 9.89213 9.99519Z" fill="#FFB668" /></svg>
+                  </div>
+                }
+                <h1 className="welcome-title">{`היי ${firstName}!`}</h1>
+                <p className="welcome-subtitle">{locationSubtitle}</p>
+                {/* Show appropriate selector based on current role */}
+                {currentRole === 'leader' && <GroupSelector />}
+                {currentRole === 'coordinator' && <KnSelector />}
+              </div>
+            </header>
+
+
+            {/* Main Content */}
+            <div className="pageContent">
+
+              <main className="dashboard-main">
+
+                <div className="new-top-cards">
+                  <a href="https://bit.ly/m/hadracha" className="statusCard guide-link">
+                    <h3>לאתר ההדרכה של התנועה החדשה
+                      <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.4887 9.79156C16.4887 9.94075 16.4295 10.0838 16.324 10.1893C16.2185 10.2948 16.0754 10.3541 15.9262 10.3541H4.90896L9.01169 14.4561C9.06395 14.5084 9.10541 14.5704 9.13369 14.6387C9.16198 14.707 9.17654 14.7802 9.17654 14.8541C9.17654 14.928 9.16198 15.0012 9.13369 15.0694C9.10541 15.1377 9.06395 15.1998 9.01169 15.252C8.95943 15.3043 8.89739 15.3458 8.8291 15.374C8.76082 15.4023 8.68763 15.4169 8.61372 15.4169C8.53981 15.4169 8.46663 15.4023 8.39834 15.374C8.33006 15.3458 8.26802 15.3043 8.21575 15.252L3.15325 10.1895C3.10096 10.1373 3.05947 10.0753 3.03116 10.007C3.00285 9.93868 2.98828 9.86549 2.98828 9.79156C2.98828 9.71764 3.00285 9.64445 3.03116 9.57616C3.05947 9.50787 3.10096 9.44584 3.15325 9.3936L8.21575 4.3311C8.3213 4.22555 8.46446 4.16625 8.61372 4.16625C8.76299 4.16625 8.90614 4.22555 9.01169 4.3311C9.11724 4.43664 9.17654 4.5798 9.17654 4.72906C9.17654 4.87833 9.11724 5.02149 9.01169 5.12703L4.90896 9.22906H15.9262C16.0754 9.22906 16.2185 9.28833 16.324 9.39382C16.4295 9.49931 16.4887 9.64238 16.4887 9.79156Z" fill="white" /></svg>
+                    </h3>
+                    {!isMobile && <img src="image 18.png" alt="guide" />}
+                  </a>
+
+                  {isCoordinator && (
+                    <StatusCard
+                      title="מדריכים פעילים"
+                      content={activeLeadersCount}
+                      className="active-instructors-card"
+                      style='{"background":"linear-gradient(265.59deg, #B9A976 36.05%, #DCDAC0 208.75%)","width": "25%"}'
+                    />
+                  )}
+
+                  <StatusCard
+                    title="אירועים בחודש הקרוב"
+                    content={activitiesNextMonth}
+                    icon={<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20.2485 3.2916H17.9985V2.5416C17.9985 2.34268 17.9195 2.15192 17.7789 2.01127C17.6382 1.87061 17.4474 1.7916 17.2485 1.7916C17.0496 1.7916 16.8589 1.87061 16.7182 2.01127C16.5776 2.15192 16.4985 2.34268 16.4985 2.5416V3.2916H8.99854V2.5416C8.99854 2.34268 8.91952 2.15192 8.77886 2.01127C8.63821 1.87061 8.44745 1.7916 8.24854 1.7916C8.04962 1.7916 7.85886 1.87061 7.71821 2.01127C7.57755 2.15192 7.49854 2.34268 7.49854 2.5416V3.2916H5.24854C4.85071 3.2916 4.46918 3.44963 4.18787 3.73094C3.90657 4.01224 3.74854 4.39377 3.74854 4.7916V19.7916C3.74854 20.1894 3.90657 20.571 4.18787 20.8523C4.46918 21.1336 4.85071 21.2916 5.24854 21.2916H20.2485C20.6464 21.2916 21.0279 21.1336 21.3092 20.8523C21.5905 20.571 21.7485 20.1894 21.7485 19.7916V4.7916C21.7485 4.39377 21.5905 4.01224 21.3092 3.73094C21.0279 3.44963 20.6464 3.2916 20.2485 3.2916ZM7.49854 4.7916V5.5416C7.49854 5.74051 7.57755 5.93127 7.71821 6.07193C7.85886 6.21258 8.04962 6.2916 8.24854 6.2916C8.44745 6.2916 8.63821 6.21258 8.77886 6.07193C8.91952 5.93127 8.99854 5.74051 8.99854 5.5416V4.7916H16.4985V5.5416C16.4985 5.74051 16.5776 5.93127 16.7182 6.07193C16.8589 6.21258 17.0496 6.2916 17.2485 6.2916C17.4474 6.2916 17.6382 6.21258 17.7789 6.07193C17.9195 5.93127 17.9985 5.74051 17.9985 5.5416V4.7916H20.2485V7.7916H5.24854V4.7916H7.49854ZM20.2485 19.7916H5.24854V9.2916H20.2485V19.7916Z" fill="white" />
+                    </svg>}
+                    className="events-card"
+                    style='{"background":"linear-gradient(262.33deg, #C86338 6.31%, #DB992B 93.9%)","width": "25%"}'
+                  />
+
+                  <StatusCard
+                    title="רמת נוכחות חודש נוכחי"
+                    content={overallAttendance}
+                    icon={<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fill-rule="evenodd" clip-rule="evenodd" d="M22.5283 8.1546C22.3513 7.9416 22.1113 7.8096 21.8533 7.7886C21.3763 7.7466 20.7793 8.4276 19.5853 9.7866C18.9673 10.4886 18.6583 10.8426 18.3133 10.8966C18.1213 10.9266 17.9293 10.8966 17.7523 10.8066C17.4343 10.6476 17.2213 10.2126 16.7983 9.3426L14.5603 4.7586C13.7593 3.1146 13.3573 2.2926 12.7483 2.2926C12.1393 2.2926 11.7373 3.1146 10.9363 4.7586L8.69834 9.3396C8.27534 10.2096 8.06234 10.6446 7.74434 10.8036C7.56734 10.8936 7.37234 10.9236 7.18334 10.8936C6.83834 10.8396 6.52934 10.4886 5.91134 9.7836C4.71734 8.4246 4.12034 7.7436 3.64334 7.7856C3.38534 7.8096 3.14534 7.9386 2.96834 8.1516C2.64134 8.5476 2.73134 9.50459 2.91134 11.4156L3.13934 13.8516C3.51734 17.8656 3.70634 19.8726 4.88834 21.0816C6.07034 22.2906 7.84334 22.2906 11.3893 22.2906H14.1103C17.6563 22.2906 19.4263 22.2906 20.6113 21.0816C21.7933 19.8726 21.9823 17.8656 22.3603 13.8516L22.5883 11.4156C22.7653 9.50459 22.8553 8.5476 22.5283 8.1546ZM15.7483 19.0416H9.74834C9.33434 19.0416 8.99834 18.7056 8.99834 18.2916C8.99834 17.8776 9.33434 17.5416 9.74834 17.5416H15.7483C16.1623 17.5416 16.4983 17.8776 16.4983 18.2916C16.4983 18.7056 16.1623 19.0416 15.7483 19.0416Z" fill="url(#paint0_linear_8_1737)" />
+                      <defs>
+                        <linearGradient id="paint0_linear_8_1737" x1="15.284" y1="33.0594" x2="19.9716" y2="5.78622" gradientUnits="userSpaceOnUse">
+                          <stop stop-color="#E9C272" />
+                          <stop offset="1" stop-color="#DB992B" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    }
+                    className="presence-card"
+                    style='{"background": "linear-gradient(261.4deg, #006455 24.82%, #15AD96 101.57%)", "width": "50%"}'
+                  />
+                </div>
+
+                {
+
+                  //   {/* Bottom Section */}
+                  //   <div className="bottom-section">
+                  //     {/* Calendar */}
+                  //     {!isMobile && <CalendarSection isMobile={isMobile} />}
+
+                  //     {/* Right Sidebar */}
+                  //     <div className="right-sidebar">
+                  //       <div className="sidebar-section">
+                  //         <RecentActivities />
+                  //       </div>
+                  //       {isMobile && <CalendarSection isMobile={isMobile} />}
+                  //       <div className="stats-section">
+                  //         <TraineesStats />
+                  //       </div>
+                  //     </div>
+                  // </div>
+                }
+              </main>
+
+            </div>
+          </div>
+        </div>
+
+        {/* Error Modal */}
+        {(Object.keys(userError).length != 0 || Object.keys(relatedError).length != 0) && (
+          <Modal
+            // iconSrc="/ol_icon_error.png"
+            title={userError.title || relatedError.title}
+            message={userError.message || relatedError.message}
+          // handleClose={handleCloseError}
+          />
+        )}
+      </>
+    )
+  }
+
+
+
+  let HomePage = function ReactApp() {
+    const dispatch = useDispatch();
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { userId: contactId, fullName: firstName, rolesList, currentRole, groupsList, currentGroup, loading: userLoading, error: userError } = useSelector((state) => state?.user);
+
+    // Load user data from API on mount
+    useEffect(() => {
+      if (contactId) {
+        if (rolesList.length === 0 && !userLoading.roles) {
+          dispatch(fetchUserRoles());
+        }
+        if (groupsList.length === 0 && !userLoading.groups) {
+          dispatch(fetchUserGroups());
+        }
+      }
+    }, [dispatch, userLoading, rolesList, groupsList]);
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+
+    // Get user data and permissions with debug logging
+    const currentUser = useSelector(state => state?.user?.user || null);
+    const isInstructor = useSelector(state => {
+      const user = state?.user?.user;
+      return user?.contactType == 14 || Number(user?.contactType) === 14;
+    });
+    const isCoordinator = useSelector(state => {
+      const user = state?.user?.user;
+      return user?.contactType == 38 || Number(user?.contactType) === 38;
+    });
+    const userPermissions = useSelector(state => {
+      const user = state?.user?.user;
+      const isInstr = user?.contactType == 14 || Number(user?.contactType) === 14;
+      const isCoord = user?.contactType == 38 || Number(user?.contactType) === 38;
+      return {
+        isInstructor: isInstr,
+        isCoordinator: isCoord,
+        canMarkAttendance: isInstr,
+        canViewCoordinatorsStats: isCoord
+      };
+    });
+
+
+
+    useEffect(() => {
+      if (userPermissions.canViewCoordinatorsStats && typeof window.fetchActiveInstructors === 'function' && currentUser?.id) {
+        console.log('👨‍🏫 Fetching active instructors for coordinator:', currentUser.id);
+        dispatch(window.fetchActiveInstructors(currentUser.id));
+      }
+    }, [dispatch, userPermissions.canViewCoordinatorsStats, currentUser?.id]);
+
+    return (
+      <div className="page-layout">
+        {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile />}
+        {isMobile && isSidebarOpen && (
+          <div className="sidebar-mobile-fullpage">
+            <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
+            <SidebarMenu />
+          </div>
+        )}
+        <div className={`dashboard-container ${!isMobile ? "main-content" : ""}`} dir="rtl">
+
+          {/* Header */}
+          <header className="dashboard-header">
+
+            <div className="header-right">
+
+            </div>
+
+            <div className="header-home">
+              {isMobile &&
+                <div onClick={() => setIsSidebarOpen(true)}>
+                  <svg width="45" height="45" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="45" height="45" rx="22.5" fill="#ECECE5" /><path d="M31.5 22.5C31.5 22.6989 31.421 22.8897 31.2803 23.0303C31.1397 23.171 30.9489 23.25 30.75 23.25H14.25C14.0511 23.25 13.8603 23.171 13.7197 23.0303C13.579 22.8897 13.5 22.6989 13.5 22.5C13.5 22.3011 13.579 22.1103 13.7197 21.9697C13.8603 21.829 14.0511 21.75 14.25 21.75H30.75C30.9489 21.75 31.1397 21.829 31.2803 21.9697C31.421 22.1103 31.5 22.3011 31.5 22.5ZM14.25 17.25H30.75C30.9489 17.25 31.1397 17.171 31.2803 17.0303C31.421 16.8897 31.5 16.6989 31.5 16.5C31.5 16.3011 31.421 16.1103 31.2803 15.9697C31.1397 15.829 30.9489 15.75 30.75 15.75H14.25C14.0511 15.75 13.8603 15.829 13.7197 15.9697C13.579 16.1103 13.5 16.3011 13.5 16.5C13.5 16.6989 13.579 16.8897 13.7197 17.0303C13.8603 17.171 14.0511 17.25 14.25 17.25ZM30.75 27.75H14.25C14.0511 27.75 13.8603 27.829 13.7197 27.9697C13.579 28.1103 13.5 28.3011 13.5 28.5C13.5 28.6989 13.579 28.8897 13.7197 29.0303C13.8603 29.171 14.0511 29.25 14.25 29.25H30.75C30.9489 29.25 31.1397 29.171 31.2803 29.0303C31.421 28.8897 31.5 28.6989 31.5 28.5C31.5 28.3011 31.421 28.1103 31.2803 27.9697C31.1397 27.829 30.9489 27.75 30.75 27.75Z" fill="black" /></svg>
+                  <svg className="notification-badge notification-badge-mobile" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.002 1C18.0783 1 23.0047 5.9257 23.0049 12.002C23.0049 18.0784 18.0784 23.0049 12.002 23.0049C5.9257 23.0047 1 18.0783 1 12.002C1.00022 5.92584 5.92584 1.00022 12.002 1Z" fill="#C86338" stroke="white" stroke-width="2" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.1553 6.99173L11.1633 6.98031L11.7672 6.10015C11.8553 5.97159 12.031 5.93783 12.1596 6.02601C12.1948 6.05018 12.2227 6.08081 12.2431 6.1153L12.8444 6.99168L12.851 7.00043C12.8932 7.05463 12.9515 7.10926 13.0156 7.15812C13.0901 7.21467 13.1716 7.26256 13.2455 7.29254C13.4303 7.36774 13.6225 7.36066 13.809 7.30716C14.0171 7.2473 14.2204 7.13119 14.4029 7.00157L15.115 6.4959C15.2422 6.40569 15.4183 6.4347 15.5085 6.56184C15.5223 6.58116 15.5332 6.60164 15.5415 6.62273L15.9219 7.38C16.2279 7.9889 16.4873 8.71462 16.6762 9.45252C16.8672 10.1991 16.9883 10.9667 17.0142 11.647C17.075 13.2455 16.676 14.5838 15.8822 15.6405C15.0692 16.7229 13.847 17.5007 12.2849 17.9513L12.0777 18.011C12.0153 18.0291 11.9519 18.0259 11.8958 18.0035L11.7147 17.9512C10.1528 17.5007 8.93042 16.7228 8.11741 15.6404C7.32376 14.5839 6.92482 13.2454 6.98552 11.647C7.01134 10.9667 7.1324 10.1991 7.32351 9.4526C7.51238 8.71457 7.77189 7.98898 8.07781 7.38006L8.47002 6.59956C8.53994 6.4603 8.70888 6.40308 8.84825 6.473C8.86801 6.483 8.8861 6.49493 8.90236 6.50852L9.59687 7.0015C9.77937 7.13111 9.98261 7.24736 10.1907 7.30711C10.3772 7.36066 10.5694 7.36767 10.7543 7.29249C10.8282 7.26242 10.9098 7.21462 10.9842 7.15804C11.0517 7.10666 11.1127 7.04873 11.1553 6.99173Z" fill="#FFE07D" /><path fill-rule="evenodd" clip-rule="evenodd" d="M11.9998 8.45764C12.978 8.45764 13.8636 8.85416 14.5046 9.49521C15.1456 10.1362 15.5422 11.0217 15.5422 12C15.5422 12.9782 15.1457 13.8637 14.5046 14.5047C13.8637 15.1458 12.978 15.5424 11.9998 15.5424C11.0217 15.5424 10.1361 15.1458 9.49508 14.5047C8.85415 13.8638 8.45752 12.9782 8.45752 12C8.45752 11.0219 8.85404 10.1362 9.49508 9.49521C10.1361 8.85413 11.0217 8.45764 11.9998 8.45764Z" fill="#FFC269" /><path fill-rule="evenodd" clip-rule="evenodd" d="M12.9081 10.9632L14.2008 11.2431C14.3531 11.2761 14.45 11.4265 14.417 11.5789C14.4044 11.6371 14.3746 11.6873 14.334 11.725L13.47 12.6924L13.6039 14.0085C13.6196 14.1636 13.5066 14.302 13.3514 14.3178C13.296 14.3235 13.2426 14.3126 13.1962 14.2892L11.9992 13.7621L10.7893 14.2955C10.6466 14.3582 10.48 14.2935 10.4171 14.1508C10.3935 14.0973 10.3879 14.0406 10.3977 13.987L10.5285 12.6926L9.6478 11.7067C9.62902 11.7198 9.48523 11.4729 9.6694 11.3086C9.71044 11.2719 9.75938 11.2495 9.81002 11.2408L11.0905 10.9633L11.7553 9.8208C11.8338 9.68605 12.0066 9.64058 12.1414 9.71898C12.191 9.74785 12.2286 9.78973 12.2523 9.83778L12.9081 10.9632Z" fill="#ECECE5" /><path fill-rule="evenodd" clip-rule="evenodd" d="M9.89213 9.99519C10.5331 9.35411 11.4188 8.95762 12.3969 8.95762C13.3751 8.95762 14.2606 9.35414 14.9017 9.99519C14.9222 10.0158 14.9426 10.0366 14.9627 10.0577C14.8293 9.85473 14.6757 9.66625 14.5046 9.49517C13.8636 8.85413 12.978 8.45761 11.9998 8.45761C11.0217 8.45761 10.1361 8.8541 9.49508 9.49517C8.85404 10.1362 8.45752 11.0218 8.45752 11.9999C8.45752 12.9467 8.82908 13.8068 9.43408 14.4422C9.06774 13.8845 8.85456 13.2171 8.85456 12.4999C8.85456 11.5218 9.25108 10.6362 9.89213 9.99519Z" fill="#FFB668" /></svg>
+                </div>
+              }
+              <h1 className="welcome-title">{`היי ${firstName}!`}</h1>
+
+
+              <p className="welcome-subtitle">מרחב צפון • מועצה איזורית גליל • סניף נהריה </p>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <div className="pageContent">
+            <main className="dashboard-main">
+              <div className="new-top-cards">
+                <a href="https://bit.ly/m/hadracha" className="statusCard guide-link">
+                  <h3>לאתר ההדרכה של התנועה החדשה
+                    <svg width="19" height="19" viewBox="0 0 19 19" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.4887 9.79156C16.4887 9.94075 16.4295 10.0838 16.324 10.1893C16.2185 10.2948 16.0754 10.3541 15.9262 10.3541H4.90896L9.01169 14.4561C9.06395 14.5084 9.10541 14.5704 9.13369 14.6387C9.16198 14.707 9.17654 14.7802 9.17654 14.8541C9.17654 14.928 9.16198 15.0012 9.13369 15.0694C9.10541 15.1377 9.06395 15.1998 9.01169 15.252C8.95943 15.3043 8.89739 15.3458 8.8291 15.374C8.76082 15.4023 8.68763 15.4169 8.61372 15.4169C8.53981 15.4169 8.46663 15.4023 8.39834 15.374C8.33006 15.3458 8.26802 15.3043 8.21575 15.252L3.15325 10.1895C3.10096 10.1373 3.05947 10.0753 3.03116 10.007C3.00285 9.93868 2.98828 9.86549 2.98828 9.79156C2.98828 9.71764 3.00285 9.64445 3.03116 9.57616C3.05947 9.50787 3.10096 9.44584 3.15325 9.3936L8.21575 4.3311C8.3213 4.22555 8.46446 4.16625 8.61372 4.16625C8.76299 4.16625 8.90614 4.22555 9.01169 4.3311C9.11724 4.43664 9.17654 4.5798 9.17654 4.72906C9.17654 4.87833 9.11724 5.02149 9.01169 5.12703L4.90896 9.22906H15.9262C16.0754 9.22906 16.2185 9.28833 16.324 9.39382C16.4295 9.49931 16.4887 9.64238 16.4887 9.79156Z" fill="white" /></svg>
+                  </h3>
+                  {!isMobile && <img src="image 18.png" alt="guide" />}
+                </a>
+                {isCoordinator && (
+                  <StatusCard
+                    title="מדריכים פעילים"
+                    content={activeInstructorsCount}
+                    className="active-instructors-card"
+                    style='{"background":"linear-gradient(265.59deg, #B9A976 36.05%, #DCDAC0 208.75%)","width": "25%"}'
+
+                  />
+                )}
+
+                <StatusCard
+                  title="אירועים בחודש הקרוב"
+                  content={activitiesNextMonth}
+                  icon={<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.2485 3.2916H17.9985V2.5416C17.9985 2.34268 17.9195 2.15192 17.7789 2.01127C17.6382 1.87061 17.4474 1.7916 17.2485 1.7916C17.0496 1.7916 16.8589 1.87061 16.7182 2.01127C16.5776 2.15192 16.4985 2.34268 16.4985 2.5416V3.2916H8.99854V2.5416C8.99854 2.34268 8.91952 2.15192 8.77886 2.01127C8.63821 1.87061 8.44745 1.7916 8.24854 1.7916C8.04962 1.7916 7.85886 1.87061 7.71821 2.01127C7.57755 2.15192 7.49854 2.34268 7.49854 2.5416V3.2916H5.24854C4.85071 3.2916 4.46918 3.44963 4.18787 3.73094C3.90657 4.01224 3.74854 4.39377 3.74854 4.7916V19.7916C3.74854 20.1894 3.90657 20.571 4.18787 20.8523C4.46918 21.1336 4.85071 21.2916 5.24854 21.2916H20.2485C20.6464 21.2916 21.0279 21.1336 21.3092 20.8523C21.5905 20.571 21.7485 20.1894 21.7485 19.7916V4.7916C21.7485 4.39377 21.5905 4.01224 21.3092 3.73094C21.0279 3.44963 20.6464 3.2916 20.2485 3.2916ZM7.49854 4.7916V5.5416C7.49854 5.74051 7.57755 5.93127 7.71821 6.07193C7.85886 6.21258 8.04962 6.2916 8.24854 6.2916C8.44745 6.2916 8.63821 6.21258 8.77886 6.07193C8.91952 5.93127 8.99854 5.74051 8.99854 5.5416V4.7916H16.4985V5.5416C16.4985 5.74051 16.5776 5.93127 16.7182 6.07193C16.8589 6.21258 17.0496 6.2916 17.2485 6.2916C17.4474 6.2916 17.6382 6.21258 17.7789 6.07193C17.9195 5.93127 17.9985 5.74051 17.9985 5.5416V4.7916H20.2485V7.7916H5.24854V4.7916H7.49854ZM20.2485 19.7916H5.24854V9.2916H20.2485V19.7916Z" fill="white" />
+                  </svg>}
+                  className="events-card"
+                  style='{"background":"linear-gradient(262.33deg, #C86338 6.31%, #DB992B 93.9%)","width": "25%"}'
+                />
+                <StatusCard
+                  title="רמת נוכחות חודש נוכחי"
+                  content={overallAttendance}
+                  icon={<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M22.5283 8.1546C22.3513 7.9416 22.1113 7.8096 21.8533 7.7886C21.3763 7.7466 20.7793 8.4276 19.5853 9.7866C18.9673 10.4886 18.6583 10.8426 18.3133 10.8966C18.1213 10.9266 17.9293 10.8966 17.7523 10.8066C17.4343 10.6476 17.2213 10.2126 16.7983 9.3426L14.5603 4.7586C13.7593 3.1146 13.3573 2.2926 12.7483 2.2926C12.1393 2.2926 11.7373 3.1146 10.9363 4.7586L8.69834 9.3396C8.27534 10.2096 8.06234 10.6446 7.74434 10.8036C7.56734 10.8936 7.37234 10.9236 7.18334 10.8936C6.83834 10.8396 6.52934 10.4886 5.91134 9.7836C4.71734 8.4246 4.12034 7.7436 3.64334 7.7856C3.38534 7.8096 3.14534 7.9386 2.96834 8.1516C2.64134 8.5476 2.73134 9.50459 2.91134 11.4156L3.13934 13.8516C3.51734 17.8656 3.70634 19.8726 4.88834 21.0816C6.07034 22.2906 7.84334 22.2906 11.3893 22.2906H14.1103C17.6563 22.2906 19.4263 22.2906 20.6113 21.0816C21.7933 19.8726 21.9823 17.8656 22.3603 13.8516L22.5883 11.4156C22.7653 9.50459 22.8553 8.5476 22.5283 8.1546ZM15.7483 19.0416H9.74834C9.33434 19.0416 8.99834 18.7056 8.99834 18.2916C8.99834 17.8776 9.33434 17.5416 9.74834 17.5416H15.7483C16.1623 17.5416 16.4983 17.8776 16.4983 18.2916C16.4983 18.7056 16.1623 19.0416 15.7483 19.0416Z" fill="url(#paint0_linear_8_1737)" />
+                    <defs>
+                      <linearGradient id="paint0_linear_8_1737" x1="15.284" y1="33.0594" x2="19.9716" y2="5.78622" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#E9C272" />
+                        <stop offset="1" stop-color="#DB992B" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  }
+                  className="presence-card"
+                  style='{"background": "linear-gradient(261.4deg, #006455 24.82%, #15AD96 101.57%)", "width": "50%"}'
+                />
+              </div>
+
+
+
+              {/* Bottom Section */}
+              <div className="bottom-section">
+                {/* Calendar */}
+                {!isMobile && <CalendarSection isMobile={isMobile} />}
+
+                {/* Right Sidebar */}
+                <div className="right-sidebar">
+                  <div className="sidebar-section">
+                    <RecentActivities />
+                  </div>
+                  {isMobile && <CalendarSection isMobile={isMobile} />}
+                  <div className="stats-section">
+                    <TraineesStats />
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Note: CalendarGrid component removed - replaced by FullCalendar (ActivityCalendar)
+
+  // Wait for Redux store to be available and render the app
+  const renderApp = () => {
+    const rootElement = document.getElementById("root");
+
+    // Use global store if local store is not available
+    const storeToUse = typeof store !== 'undefined' ? store : window.store;
+
+    if (rootElement && !rootElement._reactRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      rootElement._reactRoot = root;
+      root.render(
+        <Provider store={storeToUse}>
+          <HomePageNew />
+        </Provider>
+      );
+    } else if (rootElement && rootElement._reactRoot) {
+      // Use existing root
+      rootElement._reactRoot.render(
+        <Provider store={storeToUse}>
+          <HomePageNew />
+        </Provider>
+      );
+    }
+  };
+
+  // Start the render process
+  // renderApp();
+
+
+  const rootElement = document.getElementById("root");
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <Provider store={store}>
+      <HomePageNew />
+    </Provider>
+  );
+</script>
+<div classname="sectionBlockLayout">
+  <div classname="container container-full containerPage">
+    <div>
+      <div id="root"></div>
+    </div>
+  </div>
+</div>
+<div class="row sectionBlockLayout text-start"
+  style="display: flex; flex-wrap: wrap; margin: 0px; min-height: auto; padding: 8px;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-12 columnBlockLayout"
+      style="flex-grow: 1; display: flex; flex-direction: column; min-width: 250px;"></div>
+  </div>
+</div>

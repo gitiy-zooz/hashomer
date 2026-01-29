@@ -1,0 +1,1092 @@
+<!-- chaya 26/01 23:17 -->
+<script>
+  // אם אין יוזר מחובר **ולא נמצאים כבר בדף SignIn** - מפנים לדף התחברות
+  if (!"{{ user.id }}" && window.location.pathname.toLowerCase() !== '/signin') {
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/SignIn?returnUrl=${returnUrl}&prompt=login&mkt=he-IL`;
+  }
+</script>
+
+<script id="Global-Functions">
+
+  (function (webapi, $) {
+    function safeAjax(ajaxOptions) {
+      var deferredAjax = $.Deferred();
+
+      shell.getTokenDeferred().done(function (token) {
+        // add headers for AJAX
+        if (!ajaxOptions.headers) {
+          $.extend(ajaxOptions, {
+            headers: {
+              "__RequestVerificationToken": token
+            }
+          });
+        } else {
+          ajaxOptions.headers["__RequestVerificationToken"] = token;
+        }
+        $.ajax(ajaxOptions)
+          .done(function (data, textStatus, jqXHR) {
+            validateLoginSession(data, textStatus, jqXHR, deferredAjax.resolve);
+          }).fail(deferredAjax.reject); //AJAX
+      }).fail(function () {
+        deferredAjax.rejectWith(this, arguments); // on token failure pass the token AJAX and args
+      });
+
+      return deferredAjax.promise();
+    }
+    webapi.safeAjax = safeAjax;
+  })(window.webapi = window.webapi || {}, jQuery);
+
+  function fetchXmlRecords(fetchUrl, callback = callbackFetchTable) {
+    var result = null;
+    var req = new XMLHttpRequest();
+    debugger
+    req.open("GET", fetchUrl, false); // pay attention
+    req.setRequestHeader("OData-MaxVersion", "4.0");
+    req.setRequestHeader("OData-Version", "4.0");
+    req.setRequestHeader("Accept", "application/json");
+    req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+    req.setRequestHeader("Prefer", "odata.include-annotations=\"*\"");
+    req.onreadystatechange = function () {
+      if (this.readyState === 4) {
+        req.onreadystatechange = null;
+        if (this.status === 200) {
+          data = JSON.parse(
+            this.response
+              .replace(/\\/g, "\\\\")
+              .replace(/\r\n/g, "")
+              .replace(/"\s+"/g, '", "')
+          );
+          callback(data)
+        }
+        else {
+          alert(this.statusText);
+        }
+      }
+    };
+    req.send();
+  }
+
+  function CleanFetchForWebAPI(fetchXml) {
+    return fetchXml.replace(/\r?\n|\r/g, "").replace(/>\s+</g, '><');
+  }
+
+  window.mobileCheck = function () {
+    let check = false;
+    (function (a) { if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true; })(navigator.userAgent || navigator.vendor || window.opera);
+    return check;
+  };
+
+  if (mobileCheck()) {
+    document.getElementById('mainContent').classList.add('mobile');
+  }
+
+  window.tabletCheck = function () {
+    const width = window.innerWidth;
+    return width >= 767 && width <= 1024;
+  }
+
+  if (tabletCheck()) {
+    document.getElementById('mainContent').classList.add('tablet');
+  }
+</script>
+
+<script id="Global-Components" type="text/babel">
+  const { useState, useEffect, useRef } = React;
+  const { Provider, useSelector, useDispatch } = window.ReactRedux;
+
+
+  const Loader = () => {
+    const style = { marginTop: '20px', fontSize: '18px', color: '#006455', fontWeight: 'bold' }
+    return (
+      <div className="loader-container">
+        <div className="loader"></div>
+        <p style={style}>טוען נתונים...</p>
+      </div>
+    );
+  };
+
+
+  /* ------------------------- StatusCard  ------------------------- */
+
+  const StatusCard = ({
+    title,
+    content,    // יכול להיות מספר או string
+    subtitle,   // ← חדש! טקסט נוסף מתחת ל-content
+    icon,
+    iconClass,
+    link,
+    style,
+    className
+  }) => {
+    let parsedStyle = {};
+    if (typeof style === "string") {
+      try {
+        parsedStyle = JSON.parse(style);
+      } catch (e) {
+        console.error("Style parsing failed:", e);
+      }
+    } else if (typeof style === "object") {
+      parsedStyle = style;
+    }
+
+    const handleClick = () => {
+      if (link) {
+        window.location.href = link;
+      }
+    };
+
+    // בדיקה אם מדובר במספר או טקסט
+    const isNumber = typeof content === "number";
+
+    return (
+      <div
+        className={`statusCard ${className}`}
+        style={parsedStyle}
+        {...(link ? { onClick: handleClick } : {})}
+      >
+
+        <div className="card-details">
+
+          <h3>{title}</h3>
+          {content !== undefined && (
+            <p className={isNumber ? "numberbutton" : "textbutton"}>
+              {content}
+            </p>
+          )}
+          {subtitle && (
+            <div className="card-subtitle">{subtitle}</div>
+          )}
+        </div>
+        {(icon || iconClass) && (
+          <div className="new-card-icon">
+            {iconClass ? <i className={iconClass}></i> : icon}
+          </div>
+        )}
+      </div>
+
+    );
+  };
+
+  /* ------------------------- Tag Component ------------------------- */
+  const Tag = ({ tag }) => {
+    if (!tag) return null;
+
+    const hexToRgba = (hex, alpha) => {
+      if (!hex) return `rgba(247, 227, 178, ${alpha})`;
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    const darkenColor = (hex, amount = 0.2) => {
+      if (!hex) return '#D9C090';
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+      let r = parseInt(hex.slice(0, 2), 16);
+      let g = parseInt(hex.slice(2, 4), 16);
+      let b = parseInt(hex.slice(4, 6), 16);
+      r = Math.max(0, Math.floor(r * (1 - amount)));
+      g = Math.max(0, Math.floor(g * (1 - amount)));
+      b = Math.max(0, Math.floor(b * (1 - amount)));
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+
+    const tagStyle = {
+      backgroundColor: hexToRgba(tag.color, 0.12),
+      color: darkenColor(tag.color, 0.3),
+    };
+
+    return (
+      <span className="tag" style={tagStyle}>
+        {tag.label}
+      </span>
+    );
+  };
+
+  /* ------------------------- Role Toggle Component ------------------------- */
+  const RoleToggle = () => {
+    const dispatch = useDispatch();
+    const { userRoles, currentRole } = useSelector((state) => state?.user);
+
+    // Only show if user has BOTH roles
+    if (!userRoles.coordinator || !userRoles.leader) {
+      return null;
+    }
+
+    const handleToggle = (role) => {
+      dispatch({ type: 'user/setCurrentRole', payload: role });
+    };
+
+    return (
+      <div className="role-toggle-container">
+        <div className="role-toggle-buttons">
+          <button
+            className={`role-toggle-btn ${currentRole === 'leader' ? 'active' : ''}`}
+            onClick={() => handleToggle('leader')}
+          >
+            הקבוצה שלי
+          </button>
+          <button
+            className={`role-toggle-btn ${currentRole === 'coordinator' ? 'active' : ''}`}
+            onClick={() => handleToggle('coordinator')}
+          >
+            הקן שלי
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  /* ------------------------- Group Selector Component ------------------------- */
+  const GroupSelector = () => {
+    const dispatch = useDispatch();
+    const { roles, currentKnId, currentGroupId } = useSelector((state) => state?.user);
+
+    // Get all groups from roles
+    const activeKnId = currentKnId || (roles && Object.keys(roles).length > 0 ? Object.keys(roles)[0] : null);
+    const currentKnData = (roles && activeKnId && roles[activeKnId]) ? roles[activeKnId] : null;
+
+    if (!currentKnData) return null;
+
+    // Extract unique groups from rolesOptions
+    const groupsMap = {};
+    if (currentKnData.rolesOptions) {
+      currentKnData.rolesOptions.forEach(roleOption => {
+        if (roleOption.groupId && roleOption.groupName && roleOption.roleLabel === 'leader') {
+          groupsMap[roleOption.groupId] = roleOption.groupName;
+        }
+      });
+    }
+
+    const groups = Object.entries(groupsMap).map(([id, name]) => ({ id, name }));
+
+    // If no groups, return null
+    if (groups.length === 0) return null;
+
+    // If only one group, display static text
+    if (groups.length === 1) {
+      const knName = currentKnData.name || '';
+      const groupName = groups[0].name || '';
+      return (
+        <p className="location-context-static">
+          {knName} / {groupName}
+        </p>
+      );
+    }
+
+    // Multiple groups: show dropdown
+    const handleGroupChange = (e) => {
+      dispatch({ type: 'user/setCurrentGroupId', payload: e.target.value });
+    };
+
+    const selectedGroupId = currentGroupId || groups[0].id;
+
+    return (
+      <div className="location-selector-container">
+        <select
+          className="location-selector-dropdown"
+          value={selectedGroupId}
+          onChange={handleGroupChange}
+        >
+          {groups.map(group => (
+            <option key={group.id} value={group.id}>
+              {currentKnData.name} / {group.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+
+  /* ------------------------- KN Selector Component ------------------------- */
+  const KnSelector = () => {
+    const dispatch = useDispatch();
+    const { roles, currentKnId } = useSelector((state) => state?.user);
+
+    if (!roles || Object.keys(roles).length === 0) return null;
+
+    const knList = Object.entries(roles).map(([id, data]) => ({ id, name: data.name }));
+
+    // If only one KN, don't show dropdown
+    if (knList.length === 1) return null;
+
+    // Multiple KNs: show dropdown
+    const handleKnChange = (e) => {
+      dispatch({ type: 'user/setCurrentKnId', payload: e.target.value });
+    };
+
+    const selectedKnId = currentKnId || knList[0].id;
+
+    return (
+      <div className="location-selector-container">
+        <select
+          className="location-selector-dropdown"
+          value={selectedKnId}
+          onChange={handleKnChange}
+        >
+          {knList.map(kn => (
+            <option key={kn.id} value={kn.id}>
+              {kn.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+
+  /* ------------------------- Sidebar Menu ------------------------- */
+  const SidebarMenu = () => {
+
+    const { userId, fullName, roles, userRoles, currentRole, currentPageView, loading: userLoading, error: userError } = useSelector((state) => state?.user);
+    const dispatch = useDispatch();
+    const [showChat, setShowChat] = React.useState(false);
+    const currentPath = window.location.pathname;
+
+    // Debug log
+    console.log('🎯 Sidebar render:', { currentRole, currentPageView, userRoles, shouldShowInstructors: userRoles?.coordinator && currentRole !== 'leader' });
+
+    React.useEffect(() => {
+      const openHandler = () => setShowChat(true);
+      window.addEventListener('open-chat', openHandler);
+      return () => window.removeEventListener('open-chat', openHandler);
+    }, []);
+
+
+    const handleLogin = () => {
+      const returnUrl = encodeURIComponent(window.location.pathname);
+      window.location.href = `/SignIn?returnUrl=${returnUrl}&prompt=login&mkt=he-IL`;
+    };
+
+    // const isUserLoggedIn = useSelector(state => {
+    //   const user = state?.user?.user;
+    //   return user && Object.keys(user).length > 0;
+    // });
+
+    const handleLogout = () => {
+      const postLogoutRedirect = encodeURIComponent(`${window.location.origin}/SignIn?prompt=select_account&mkt=he-IL`);
+      window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirect}`;
+    };
+
+    const isActive = (path, pageView = null) => {
+      if (path === '/')
+        return currentPath === '/' || currentPath === '/home/' ||
+          currentPath.toLowerCase().includes('/home');
+
+      const pathMatches = currentPath.toLowerCase().includes(path.toLowerCase().replace(/\/$/, ''));
+
+      // If pageView is specified, also check Redux state
+      if (pageView) {
+        return pathMatches && currentPageView === pageView;
+      }
+
+      return pathMatches;
+    };
+
+    const addQuickQuestion = (text) => {
+      // This function is not currently used
+    };
+
+    return (
+      <aside className="sidebar-menu">
+
+        {/* User Section */}
+        <div className="user-section">
+          <div className="user-avatar">
+            <img src="/image 13.png" alt="User" />
+            <svg className="notification-badge" width="34" height="35" viewBox="0 0 34 35" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1.97119" width="32" height="32" rx="16" fill="#C86338" />
+              <rect x="1" y="1.97119" width="32" height="32" rx="16" stroke="#F5F5F2" stroke-width="2" />
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M15.733 10.4588L15.7449 10.4416L16.6508 9.12141C16.783 8.92857 17.0465 8.87792 17.2395 9.01019C17.2922 9.04646 17.3341 9.0924 17.3646 9.14413L18.2666 10.4587L18.2765 10.4718C18.3398 10.5531 18.4273 10.6351 18.5234 10.7084C18.6351 10.7932 18.7575 10.865 18.8682 10.91C19.1455 11.0228 19.4338 11.0122 19.7136 10.9319C20.0257 10.8421 20.3306 10.668 20.6043 10.4735L21.6726 9.71503C21.8633 9.57971 22.1274 9.62323 22.2628 9.81395C22.2835 9.84292 22.2998 9.87364 22.3122 9.90528L22.8829 11.0412C23.3419 11.9545 23.731 13.0431 24.0143 14.15C24.3008 15.2698 24.4824 16.4213 24.5213 17.4417C24.6125 19.8394 24.014 21.8469 22.8234 23.4319C21.6038 25.0555 19.7704 26.2223 17.4273 26.8981L17.1166 26.9877C17.0229 27.0149 16.9279 27.01 16.8437 26.9764L16.5721 26.898C14.2292 26.2222 12.3956 25.0554 11.1761 23.4319C9.98564 21.847 9.38724 19.8394 9.47828 17.4417C9.51701 16.4212 9.6986 15.2698 9.98527 14.1501C10.2686 13.043 10.6578 11.9547 11.1167 11.0413L11.705 9.87052C11.8099 9.66163 12.0633 9.5758 12.2724 9.68068C12.302 9.69569 12.3291 9.71357 12.3535 9.73396L13.3953 10.4734C13.6691 10.6679 13.9739 10.8422 14.286 10.9318C14.5658 11.0122 14.8541 11.0227 15.1314 10.9099C15.2423 10.8648 15.3647 10.7931 15.4762 10.7082C15.5776 10.6312 15.6691 10.5443 15.733 10.4588Z" fill="#FFE07D" />
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M17 12.6577C18.4673 12.6577 19.7956 13.2524 20.7572 14.214C21.7187 15.1755 22.3135 16.5038 22.3135 17.9711C22.3135 19.4384 21.7189 20.7667 20.7572 21.7283C19.7958 22.6898 18.4673 23.2848 17 23.2848C15.5329 23.2848 14.2044 22.6899 13.2429 21.7283C12.2815 20.7669 11.6865 19.4384 11.6865 17.9711C11.6865 16.504 12.2813 15.1755 13.2429 14.214C14.2044 13.2524 15.5329 12.6577 17 12.6577Z" fill="#FFC269" />
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M18.3619 16.4159L20.301 16.8359C20.5294 16.8854 20.6748 17.111 20.6253 17.3395C20.6064 17.4268 20.5616 17.5021 20.5008 17.5587L19.2048 19.0098L19.4057 20.9839C19.4291 21.2166 19.2597 21.4243 19.0269 21.4479C18.9437 21.4564 18.8636 21.44 18.794 21.405L16.9986 20.6143L15.1836 21.4144C14.9696 21.5085 14.7197 21.4115 14.6254 21.1974C14.5901 21.1172 14.5816 21.032 14.5962 20.9516L14.7925 19.01L13.4715 17.5312C13.4433 17.5508 13.2276 17.1805 13.5039 16.9341C13.5654 16.879 13.6388 16.8454 13.7148 16.8324L15.6355 16.4162L16.6328 14.7024C16.7505 14.5003 17.0097 14.4321 17.2118 14.5497C17.2863 14.593 17.3426 14.6558 17.3782 14.7279L18.3619 16.4159Z" fill="#ECECE5" />
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M13.8384 14.964C14.8 14.0024 16.1284 13.4076 17.5956 13.4076C19.0629 13.4076 20.3912 14.0024 21.3527 14.964C21.3836 14.9949 21.4141 15.0262 21.4443 15.0578C21.2443 14.7533 21.0138 14.4706 20.7572 14.214C19.7956 13.2524 18.4673 12.6576 17 12.6576C15.5329 12.6576 14.2044 13.2523 13.2429 14.214C12.2813 15.1755 11.6865 16.5039 11.6865 17.9711C11.6865 19.3912 12.2439 20.6814 13.1514 21.6344C12.6019 20.7979 12.2821 19.7968 12.2821 18.7211C12.2821 17.2539 12.8769 15.9255 13.8384 14.964Z" fill="#FFB668" />
+            </svg>
+          </div>
+          <div className="user-info">
+            <h4>רעות הרוש</h4>
+            <a href="/_profile">
+              <button class="details-btn">לפרטים ועדכון</button>
+            </a>
+          </div>
+        </div>
+
+        {/* Role Toggle - shown only if user has both roles */}
+        <RoleToggle />
+
+        {/* Navigation */}
+        <nav className="menu-links">
+          <button className={`menu-link ${isActive('/') ? 'active' : ''}`} onClick={() => window.location.href = '/'}>
+            מסך ראשי
+          </button>
+          <button className={`menu-link ${isActive('/Activity') ? 'active' : ''}`} onClick={() => window.location.href = '/Activity/'}>
+            פעילויות
+          </button>
+          <button className={`menu-link ${isActive('/activities-histoty') ? 'active' : ''}`} onClick={() => window.location.href = '/activities-histoty/'}>
+            הסטוריית פעילויות
+          </button>
+          <button
+            className={`menu-link ${isActive('/Campers2', 'trainees') ? 'active' : ''}`}
+            onClick={() => {
+              dispatch({ type: 'user/setCurrentPageView', payload: 'trainees' });
+              if (currentPath !== '/Campers2/') window.location.href = '/Campers2/';
+            }}
+          >
+            חניכים שלי
+          </button>
+          {/* Show Instructors tab if user has coordinator role AND is not in My Group context */}
+          {userRoles?.coordinator && currentRole !== 'leader' && (
+            <button
+              className={`menu-link ${isActive('/Campers2', 'instructors') ? 'active' : ''}`}
+              onClick={() => {
+                dispatch({ type: 'user/setCurrentPageView', payload: 'instructors' });
+                if (currentPath !== '/Campers2/') window.location.href = '/Campers2/';
+              }}
+            >
+              מדריכים שלי
+            </button>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="footer-section">
+
+          <div className="safety-incident-container">
+            <button className="safety-incident-report-btn" onClick={() => window.location.href = '/SafetyReportForm/'}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.50876 2.92999C2.42712 3.00075 2.36173 3.08832 2.31707 3.1867C2.27241 3.28508 2.24954 3.39195 2.25001 3.49999V14C2.25001 14.1989 2.32902 14.3897 2.46968 14.5303C2.61033 14.671 2.80109 14.75 3.00001 14.75C3.19892 14.75 3.38969 14.671 3.53034 14.5303C3.67099 14.3897 3.75001 14.1989 3.75001 14V11.3575C5.17751 10.2875 6.38126 10.7875 8.16751 11.67C9.18188 12.17 10.3388 12.745 11.5925 12.745C12.5125 12.745 13.485 12.4362 14.4913 11.565C14.5723 11.4948 14.6373 11.408 14.6819 11.3105C14.7265 11.2131 14.7498 11.1072 14.75 11V3.49999C14.75 3.35618 14.7087 3.2154 14.631 3.09442C14.5533 2.97344 14.4424 2.87735 14.3116 2.81761C14.1808 2.75787 14.0355 2.737 13.8932 2.75748C13.7509 2.77795 13.6174 2.83892 13.5088 2.93311C11.9644 4.27124 10.7256 3.76499 8.83251 2.82811C7.07438 1.95436 4.88563 0.871237 2.50876 2.92999ZM13.25 10.6412C11.8225 11.7119 10.6188 11.2106 8.83251 10.3287C7.38501 9.60999 5.64563 8.74999 3.75001 9.61686V3.85561C5.17751 2.78561 6.38126 3.28561 8.16751 4.16811C9.18188 4.66811 10.3388 5.24311 11.5925 5.24311C12.1648 5.24397 12.7305 5.12005 13.25 4.87999V10.6412Z" fill="#333333" />
+              </svg>
+              דיווח אירוע בטיחות
+            </button>
+          </div>
+
+          <div className="logout-container">
+            {/*isUserLoggedIn*/ userId && (
+              <button className="logout" onClick={handleLogout}>התנתקות</button>
+            )}
+            <button className="chat-button" onClick={() => { setShowChat(true); window.dispatchEvent(new Event('open-chat')) }}>
+              <svg width="41" height="41" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0.5" y="0.650269" width="40" height="40" rx="20" fill="#ECECE5" />
+                <rect x="1" y="1.15027" width="39" height="39" rx="19.5" stroke="#333333" stroke-opacity="0.3" />
+                <path d="M21.625 20.6503C21.625 20.8728 21.559 21.0903 21.4354 21.2753C21.3118 21.4603 21.1361 21.6045 20.9305 21.6897C20.725 21.7748 20.4988 21.7971 20.2805 21.7537C20.0623 21.7103 19.8618 21.6031 19.7045 21.4458C19.5472 21.2885 19.44 21.088 19.3966 20.8698C19.3532 20.6515 19.3755 20.4253 19.4606 20.2198C19.5458 20.0142 19.69 19.8385 19.875 19.7149C20.06 19.5913 20.2775 19.5253 20.5 19.5253C20.7984 19.5253 21.0845 19.6438 21.2955 19.8548C21.5065 20.0658 21.625 20.3519 21.625 20.6503ZM16.375 19.5253C16.1525 19.5253 15.935 19.5913 15.75 19.7149C15.565 19.8385 15.4208 20.0142 15.3356 20.2198C15.2505 20.4253 15.2282 20.6515 15.2716 20.8698C15.315 21.088 15.4222 21.2885 15.5795 21.4458C15.7368 21.6031 15.9373 21.7103 16.1555 21.7537C16.3738 21.7971 16.6 21.7748 16.8055 21.6897C17.0111 21.6045 17.1868 21.4603 17.3104 21.2753C17.434 21.0903 17.5 20.8728 17.5 20.6503C17.5 20.3519 17.3815 20.0658 17.1705 19.8548C16.9595 19.6438 16.6734 19.5253 16.375 19.5253ZM24.625 19.5253C24.4025 19.5253 24.185 19.5913 24 19.7149C23.815 19.8385 23.6708 20.0142 23.5856 20.2198C23.5005 20.4253 23.4782 20.6515 23.5216 20.8698C23.565 21.088 23.6722 21.2885 23.8295 21.4458C23.9868 21.6031 24.1873 21.7103 24.4055 21.7537C24.6238 21.7971 24.85 21.7748 25.0555 21.6897C25.2611 21.6045 25.4368 21.4603 25.5604 21.2753C25.684 21.0903 25.75 20.8728 25.75 20.6503C25.75 20.3519 25.6315 20.0658 25.4205 19.8548C25.2095 19.6438 24.9234 19.5253 24.625 19.5253ZM30.25 20.6503C30.2504 22.3336 29.8149 23.9883 28.986 25.4534C28.1572 26.9185 26.9631 28.1441 25.52 29.0108C24.077 29.8775 22.4341 30.3558 20.7514 30.3992C19.0686 30.4426 17.4033 30.0496 15.9175 29.2584L12.7253 30.3225C12.461 30.4106 12.1774 30.4234 11.9062 30.3594C11.6351 30.2954 11.3871 30.1572 11.1901 29.9602C10.9931 29.7632 10.8549 29.5152 10.7909 29.2441C10.7269 28.9729 10.7397 28.6893 10.8278 28.425L11.8919 25.2328C11.1964 23.9252 10.8079 22.4763 10.756 20.9962C10.7041 19.5161 10.99 18.0436 11.5921 16.6904C12.1942 15.3373 13.0967 14.1391 14.231 13.1869C15.3654 12.2346 16.7017 11.5532 18.1387 11.1946C19.5756 10.8359 21.0754 10.8093 22.5242 11.1167C23.973 11.4242 25.3327 12.0577 26.5001 12.9691C27.6675 13.8806 28.6119 15.046 29.2616 16.3769C29.9114 17.7078 30.2494 19.1692 30.25 20.6503ZM28.75 20.6503C28.7496 19.3848 28.4582 18.1363 27.8981 17.0015C27.338 15.8667 26.5244 14.8759 25.5201 14.1058C24.5159 13.3358 23.3479 12.8071 22.1067 12.5606C20.8654 12.3141 19.584 12.3566 18.3618 12.6845C17.1395 13.0125 16.0091 13.6173 15.058 14.4521C14.1068 15.2869 13.3605 16.3293 12.8767 17.4987C12.3929 18.668 12.1846 19.9331 12.2679 21.1958C12.3512 22.4586 12.7239 23.6852 13.3572 24.7809C13.4103 24.8729 13.4433 24.9751 13.454 25.0808C13.4647 25.1865 13.4528 25.2933 13.4191 25.394L12.25 28.9003L15.7562 27.7312C15.8326 27.7052 15.9128 27.6919 15.9934 27.6919C16.1252 27.6921 16.2545 27.727 16.3684 27.7931C17.6226 28.5188 19.0458 28.9013 20.4948 28.9022C21.9438 28.9031 23.3674 28.5224 24.6225 27.7983C25.8776 27.0743 26.9199 26.0324 27.6445 24.7776C28.369 23.5228 28.7503 22.0993 28.75 20.6503Z" fill="#333333" />
+              </svg>
+            </button>
+          </div>
+          <div className="logos">
+            <img src="/נוער השומר 1.png" alt="נוער השומר 1" />
+          </div>
+        </div>
+
+        {showChat && <Chat userName={fullName} setShowChat={setShowChat} />}
+      </aside>
+    );
+  };
+
+
+  /* ------------------------- Chat Component ------------------------- */
+  const Chat = ({ setShowChat }) => {
+    console.log("Chat component LOADED", new Date());
+
+    const { firstName } = useSelector((state) => state?.user);
+
+    const [messages, setMessages] = React.useState([
+      {
+        id: 1,
+        sender: 'assistant',
+        text: `שלום ${firstName}, אני העוזר הוירטואלי של תנועת השומר החדש.\nאיך אוכל לעזור לך היום?`,
+        timestamp: new Date()
+      }
+    ]);
+
+    const [inputMessage, setInputMessage] = React.useState('');
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    // קריאה ל-Power Pages Flow
+    const callFlowOpenAI = async (userText) => {
+      try {
+        const response = await webapi.safeAjax({
+          type: "POST",
+          contentType: "application/json",
+          url: "/_api/cloudflow/v1.0/trigger/12bc43cb-47cf-f011-bbd3-7ced8d2d9871",
+          // data: JSON.stringify({
+          //   eventData: {
+          //     promprt: userText
+          //   }
+          // }),
+          data: JSON.stringify({
+            text: userText
+          }),
+          processData: false,
+          global: false
+        });
+
+
+        const parsed = typeof response === "string" ? JSON.parse(response) : response;
+        return parsed.answer;
+
+
+      } catch (err) {
+        console.error("Flow error:", err);
+        throw err;
+      }
+    };
+
+
+    const handleSendMessage = async (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+
+      const msg = inputMessage.trim();
+      if (!msg || isLoading) return;
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          sender: 'user',
+          text: msg,
+          timestamp: new Date()
+        }
+      ]);
+
+      setInputMessage('');
+      setIsLoading(true);
+
+      try {
+        const answer = await callFlowOpenAI(msg);
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            sender: 'assistant',
+            text: answer || 'לא התקבלה תשובה',
+            timestamp: new Date()
+          }
+        ]);
+      } catch (err) {
+        debugger;
+        setMessages(prev => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            sender: 'assistant',
+            text: 'אירעה שגיאה בעת הפנייה לבוט',
+            timestamp: new Date()
+          }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleKeyDown = e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    };
+
+    const handleTextareaChange = e => {
+      setInputMessage(e.target.value);
+
+      // Auto resize textarea
+      const textarea = e.target;
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    };
+
+
+
+    return (
+      <div className="chat-panel" dir="rtl">
+        <div className="chat-header">
+          <span className="chat-title">העוזר הוירטואלי שלך</span>
+          <button className="chat-close" onClick={() => setShowChat(false)}>×</button>
+        </div>
+
+        <div className="chat-body">
+          {messages.map(m => (
+            <div
+              key={m.id}
+              className={`chat-message ${m.sender === 'user' ? 'from-user' : 'from-assistant'}`}
+            >
+              {m.sender === 'assistant' && (
+                <div className="assistant-avatar">
+                  <img src="/chatprofile.png" alt="chat-profile" />
+                </div>
+              )}
+              <div className="chat-bubble">{m.text}</div>
+            </div>
+          ))}
+
+          {isLoading && (
+            <div className="chat-message from-assistant">
+              <div className="assistant-avatar">
+                <img src="/chatprofile.png" alt="chat-profile" />
+              </div>
+              <div className="chat-bubble">חושב רגע…</div>
+            </div>
+          )}
+        </div>
+
+        <form className="chat-input-bar" onSubmit={handleSendMessage}>
+          <div className="chat-input-wrapper">
+            <textarea
+              className="chat-input-textarea"
+              value={inputMessage}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              placeholder="אפשר לשאול כל דבר..."
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              className="chat-send-icon"
+              disabled={isLoading}
+            >
+              שלח
+            </button>
+          </div>
+        </form>
+
+      </div>
+    );
+  };
+
+  /* ------------------------- Mobile Chat FAB ------------------------- */
+  const ChatBtnInMobile = () => {
+    const { userId, fullName, firstName, rolesList, currentRole, groupsList, currentGroup, layersList, loading: userLoading, error: userError } = useSelector((state) => state?.user);
+
+    const userName = 'John Doe';
+    const [showChat, setShowChat] = React.useState(false);
+
+    React.useEffect(() => {
+      const openHandler = () => setShowChat(true);
+      window.addEventListener('open-chat', openHandler);
+      return () => window.removeEventListener('open-chat', openHandler);
+    }, []);
+
+    return (
+      <>
+        {!showChat ? (
+          <button
+            className="chat-fab-button"
+            onClick={() => window.dispatchEvent(new Event('open-chat'))}
+            aria-label="פתח צ׳אט"
+          >
+            <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="50" height="50" rx="25" fill="#333333" fill-opacity="0.8" />
+              <rect x="0.640762" y="0.640762" width="48.7185" height="48.7185" rx="24.3592" stroke="#333333" stroke-opacity="0.3" stroke-width="1.28152" />
+              <path d="M26.0722 24.6304C26.0722 24.9155 25.9876 25.1943 25.8292 25.4313C25.6708 25.6684 25.4456 25.8532 25.1822 25.9623C24.9188 26.0715 24.6289 26.1 24.3492 26.0444C24.0696 25.9887 23.8127 25.8514 23.611 25.6498C23.4094 25.4482 23.2721 25.1913 23.2165 24.9116C23.1608 24.632 23.1894 24.3421 23.2985 24.0786C23.4076 23.8152 23.5924 23.59 23.8295 23.4316C24.0666 23.2732 24.3453 23.1887 24.6305 23.1887C25.0129 23.1887 25.3796 23.3405 25.6499 23.6109C25.9203 23.8813 26.0722 24.248 26.0722 24.6304ZM19.3442 23.1887C19.0591 23.1887 18.7803 23.2732 18.5432 23.4316C18.3061 23.59 18.1213 23.8152 18.0122 24.0786C17.9031 24.3421 17.8746 24.632 17.9302 24.9116C17.9858 25.1913 18.1231 25.4482 18.3247 25.6498C18.5264 25.8514 18.7833 25.9887 19.0629 26.0444C19.3426 26.1 19.6325 26.0715 19.8959 25.9623C20.1594 25.8532 20.3845 25.6684 20.5429 25.4313C20.7014 25.1943 20.7859 24.9155 20.7859 24.6304C20.7859 24.248 20.634 23.8813 20.3636 23.6109C20.0933 23.3405 19.7266 23.1887 19.3442 23.1887ZM29.9168 23.1887C29.6316 23.1887 29.3529 23.2732 29.1158 23.4316C28.8787 23.59 28.6939 23.8152 28.5848 24.0786C28.4757 24.3421 28.4471 24.632 28.5028 24.9116C28.5584 25.1913 28.6957 25.4482 28.8973 25.6498C29.099 25.8514 29.3558 25.9887 29.6355 26.0444C29.9152 26.1 30.2051 26.0715 30.4685 25.9623C30.7319 25.8532 30.9571 25.6684 31.1155 25.4313C31.2739 25.1943 31.3585 24.9155 31.3585 24.6304C31.3585 24.248 31.2066 23.8813 30.9362 23.6109C30.6658 23.3405 30.2991 23.1887 29.9168 23.1887ZM37.1254 24.6304C37.1258 26.7876 36.5678 28.9082 35.5056 30.7857C34.4433 32.6633 32.9131 34.2338 31.0638 35.3445C29.2145 36.4552 27.1091 37.0682 24.9526 37.1238C22.7961 37.1794 20.662 36.6758 18.7579 35.6619L14.667 37.0255C14.3283 37.1385 13.9649 37.1549 13.6174 37.0729C13.2699 36.9908 12.9521 36.8137 12.6996 36.5612C12.4472 36.3088 12.27 35.991 12.188 35.6435C12.106 35.296 12.1224 34.9325 12.2353 34.5938L13.599 30.503C12.7077 28.8272 12.2099 26.9705 12.1433 25.0737C12.0767 23.1768 12.4432 21.2898 13.2148 19.5557C13.9865 17.8216 15.143 16.2861 16.5967 15.0658C18.0503 13.8454 19.7629 12.9723 21.6044 12.5126C23.4459 12.0529 25.3679 12.0188 27.2246 12.4129C29.0812 12.8069 30.8237 13.6188 32.3197 14.7868C33.8158 15.9548 35.0261 17.4483 35.8587 19.1539C36.6914 20.8595 37.1246 22.7324 37.1254 24.6304ZM35.2031 24.6304C35.2026 23.0086 34.8291 21.4086 34.1113 19.9543C33.3936 18.5 32.3509 17.2303 31.0639 16.2435C29.7769 15.2566 28.2802 14.5791 26.6895 14.2632C25.0987 13.9474 23.4567 14.0017 21.8903 14.4221C20.3239 14.8424 18.8753 15.6174 17.6564 16.6872C16.4375 17.757 15.481 19.0929 14.861 20.5915C14.241 22.0901 13.9741 23.7112 14.0808 25.3295C14.1876 26.9477 14.6653 28.5197 15.4768 29.9239C15.5449 30.0417 15.5872 30.1728 15.6009 30.3082C15.6145 30.4437 15.5993 30.5805 15.5561 30.7096L14.0579 35.2029L18.5513 33.7048C18.6491 33.6714 18.7518 33.6543 18.8552 33.6543C19.024 33.6546 19.1898 33.6994 19.3358 33.7841C20.9431 34.714 22.7669 35.2042 24.6238 35.2054C26.4807 35.2065 28.3052 34.7186 29.9136 33.7907C31.5221 32.8628 32.8578 31.5277 33.7863 29.9196C34.7148 28.3115 35.2035 26.4873 35.2031 24.6304Z" fill="white" />
+            </svg>
+          </button>
+        ) :
+          <Chat userName={userName} setShowChat={setShowChat} />}
+      </>)
+  };
+
+
+  /* ------------------------- Modal ------------------------- */
+
+  const Modal = ({ iconSrc, title, message, handleClose, children, footer, className = "", showClose = true }) => {
+    return (
+      <div className="modal-overlay" onClick={handleClose}>
+        <div className={`global-modal ${className} ${children ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
+          {handleClose && showClose && (
+            <button className="modal-close-btn" onClick={handleClose}>
+              ×
+            </button>
+          )}
+
+          <div className="modal-title">
+            <>
+              {iconSrc && <img src={iconSrc} alt={iconSrc} className="modal-icon" />}
+              {title && <h3>{title}</h3>}
+              {message && <p>{message}</p>}
+            </>
+          </div>
+
+          {children && <div className="modal-content">
+            {children}
+          </div>}
+
+          <div className="modal-footer">
+            {footer ? footer : (
+              <button onClick={handleClose} className="btn-color">סגור</button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+
+</script>
+
+
+
+<style>
+  /* Chat widget styles */
+  .chat-button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chat-panel {
+    position: fixed;
+    bottom: 35px;
+    right: 35px;
+    height: 580px;
+    width: 380px;
+    max-width: 92vw;
+    background: #fff;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    border: 1px solid #e7e7e7;
+    display: flex;
+    flex-direction: column;
+    z-index: 1100;
+  }
+
+  .chat-header {
+    background: #00466D;
+    color: #fff;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .chat-title {
+    font-weight: 600;
+  }
+
+  .chat-close {
+    background: transparent;
+    color: #fff;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .chat-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chat-message {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .chat-message.from-assistant {
+    justify-content: flex-start;
+    flex-direction: row-reverse;
+  }
+
+  .chat-message.from-user {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  .assistant-avatar {
+    /* display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; */
+    align-self: flex-start;
+  }
+
+  .assistant-avatar img {
+    margin-top: 10px;
+  }
+
+  /* .assistant-avatar svg {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+  } */
+
+  .chat-bubble {
+    max-width: 75%;
+    padding: 10px 12px;
+    border-radius: 15px;
+    font-size: 14px;
+    line-height: 1.3;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .from-assistant .chat-bubble {
+    /* background: #F1F5F9; */
+    color: #0B1B2B;
+    text-align: left;
+    /* border: 1px solid #E5EAF0; */
+  }
+
+  .from-user .chat-bubble {
+    background: #ECECE5;
+    color: #333333;
+    font-size: 16px;
+    line-height: 26px;
+    /* border: 1px solid #D2E7FF; */
+  }
+
+  .chat-suggestions {
+    padding: 8px 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: #fff;
+  }
+
+  .chat-suggestions button {
+    background: #F5F7FA;
+    border: 1px solid #E6E8EB;
+    border-radius: 20px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .chat-suggestions button:hover {
+    background: #EEF2F6;
+  }
+
+  .chat-input-bar {
+    display: flex;
+    padding: 8px;
+    background: #fff;
+  }
+
+  .chat-input-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    border: 1px solid #333333;
+    border-radius: 40px;
+    padding-left: 4px;
+    transition: border-color 0.2s ease;
+  }
+
+  .chat-input-wrapper:focus-within {
+    border-color: #1560A0;
+  }
+
+  .chat-input-wrapper input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: transparent;
+    font-family: inherit;
+    resize: none;
+    border-radius: 40px;
+    margin: 10px 0;
+  }
+
+  .chat-input-wrapper textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 0 20px 0 10px;
+    font-size: 16px;
+    background: transparent;
+    resize: none;
+    border-radius: 40px;
+    min-height: 50px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.4;
+    margin: 0;
+    align-content: center;
+  }
+
+  .chat-input-wrapper textarea::placeholder,
+  .chat-input-wrapper input::placeholder {
+    color: #7A7A7A;
+  }
+
+  .chat-send-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    color: #1560A0;
+  }
+
+  .chat-send-icon:hover {
+    opacity: 0.7;
+  }
+
+  .send-icon-group {
+    transition: opacity 0.2s ease;
+  }
+
+  .chat-input-wrapper:focus-within .send-icon-group {
+    opacity: 1 !important;
+  }
+
+  .send-arrow {
+    display: inline-block;
+    transform: scaleX(-1);
+  }
+
+  /* Floating Action Button for Chat (shown on mobile) */
+  .chat-fab-button {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 0;
+    flex-shrink: 0;
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .chat-fab-button:active {
+    transform: scale(0.95);
+  }
+
+  .chat-fab-button:focus {
+    outline: none;
+  }
+
+  /* Ensure FAB is visible on mobile */
+  @media (max-width: 768px) {
+    .chat-fab-button {
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .chat-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100vh;
+      max-width: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .chat-fab-button {
+      display: flex;
+    }
+
+    /* Hide sidebar chat button on mobile - show only FAB */
+    .chat-button {
+      display: none !important;
+    }
+  }
+
+  /* auto chat (copilot...) */
+  .pva-embedded-web-chat-widget {
+    display: none;
+  }
+
+  /* Role Toggle Styles */
+  .role-toggle-container {
+    padding: 16px;
+    border-bottom: 1px solid #E5E5E5;
+  }
+
+  .role-toggle-buttons {
+    display: flex;
+    gap: 8px;
+    background: #F5F5F2;
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .role-toggle-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s ease;
+  }
+
+  .role-toggle-btn:hover {
+    background: #ECECE5;
+  }
+
+  .role-toggle-btn.active {
+    background: #333333;
+    color: #FFFFFF;
+  }
+
+  /* Location Selector Styles */
+  .location-selector-container {
+    margin-top: 8px;
+  }
+
+  .location-selector-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #E5E5E5;
+    border-radius: 6px;
+    background: #FFFFFF;
+    font-size: 14px;
+    color: #333333;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .location-selector-dropdown:hover {
+    border-color: #C86338;
+  }
+
+  .location-selector-dropdown:focus {
+    border-color: #C86338;
+    box-shadow: 0 0 0 2px rgba(200, 99, 56, 0.1);
+  }
+
+  .location-context-static {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+    font-weight: 400;
+  }
+</style>

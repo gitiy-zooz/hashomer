@@ -1,0 +1,149 @@
+<!-- chaya 26/01 -->
+<script id="ReduxActivitiesSlice.js">
+
+  const fetchActivities2 = createAsyncThunk(
+    "activities/fetchActivities",
+    async (_, { rejectWithValue }) => {
+      return new Promise((resolve, reject) => {
+        debugger
+
+        const fetchXML = `
+<fetch mapping="logical">
+    <entity name="zooz_role_layer">
+        <attribute name="zooz_role_layerid"/>
+        <link-entity name="zooz_group" alias="group" link-type="inner" from="zooz_groupid" to="zooz_layer">
+            <link-entity name="zooz_activity_wheel" alias="activity_wheel" link-type="inner" from="zooz_youth_group" to="zooz_groupid">
+               <attribute name="zooz_name"/>
+                   <attribute name="zooz_activity_wheelid"/>
+                   <attribute name="zooz_activity"/>
+                   <attribute name="zooz_youth_group"/>
+            </link-entity>
+        </link-entity>
+    </entity>
+</fetch>`;
+
+
+        //       const fetchXML = `
+        // <fetch mapping="logical" distinct="true">
+        //     <entity name="zooz_activity_wheel">
+        //         <attribute name="zooz_activity_wheelid"/>
+        //         <attribute name="zooz_name"/>
+        //         <attribute name="zooz_activity"/>
+        //         <attribute name="zooz_youth_group"/>
+
+        //     </entity>
+        // </fetch>`;
+
+        //  <link-entity name="zooz_activity" alias="activity" link-type="outer" from="zooz_activityid" to="zooz_activity">
+        //               <attribute name="zooz_details"/>
+        //               <link-entity name="zooz_attendance" alias="attendance" link-type="outer" from="zooz_activity" to="zooz_activityid">
+        //                   <attribute name="zooz_as_plan"/>
+        //               </link-entity>
+        //           </link-entity>
+        //           <link-entity name="zooz_group" alias="group" link-type="outer" from="zooz_groupid" to="zooz_youth_group">
+        //               <link-entity name="zooz_kn" alias="kn" link-type="outer" from="zooz_knid" to="zooz_kn">
+        //                   <attribute name="zooz_knid"/>
+        //               </link-entity>
+        //           </link-entity>
+
+        // <attribute name="zooz_group"/>
+
+
+        const encodedFetch = encodeURIComponent(CleanFetchForWebAPI(fetchXML));
+
+        webapi.safeAjax({
+          type: "GET",
+          url: `/_api/zooz_role_layers?fetchXml=${encodedFetch}`,
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: function (data) {
+
+            const activities = {};
+            if (data && data.value) {
+              data.value.forEach(item => {
+                const knId = item['kn.zooz_knid'];
+                const groupId = item["attendance.zooz_group"];
+
+                if (knId && groupId) {
+                  if (!activities[knId]) {
+                    activities[knId] = {};
+                  }
+                  if (!activities[knId][groupId]) {
+                    activities[knId][groupId] = [];
+                  }
+
+                  activities[knId][groupId].push({
+                    activityId: item['zooz_activity_wheelid'],
+                    name: item['zooz_name'],
+                    details: item['activity.zooz_details'],
+                    asPlan: item['attendance.zooz_as_plan'],
+                    activityDefinitionId: item['_zooz_activity_value'],
+                    activityDefinitionName: item['_zooz_activity_value@OData.Community.Display.V1.FormattedValue'],
+                    startDate: item['attendance.zooz_date'],
+                    formattedDate: item['attendance.zooz_date@OData.Community.Display.V1.FormattedValue'],
+                  });
+                }
+              });
+            }
+            resolve({ activities });
+          },
+          error: function (xhr) {
+            debugger
+            console.error("Error fetching group students", xhr);
+            reject(xhr);
+          }
+        });
+      });
+    }
+  );
+
+  
+  function fetchActivities(parendCaseId) {
+    debugger
+    fetchXmlRecords(`https://hanoar-hashomer-dev.powerappsportals.com/fetchActivities.html`, setActivities )
+  }
+
+
+
+  const activitiesSlice = createSlice({
+    name: "activities",
+    initialState: {
+      activities: {},
+
+      loading: {
+        global: false,
+        activities: false,
+      },
+      error: {},
+    },
+
+    reducers: {
+      setCurrentRole: (state, action) => {
+        state.currentRole = action.payload;
+      },
+      setActivities: (state, action) => {
+        state.activities = action.payload;
+      },
+    },
+    extraReducers: (builder) => {
+      builder
+        .addCase(fetchActivities.pending, (state) => {
+          state.loading.activities = true;
+          state.error = {};
+        })
+        .addCase(fetchActivities.fulfilled, (state, action) => {
+          state.loading.activities = false;
+          state.activities = action.payload.activities;
+        })
+        .addCase(fetchActivities.rejected, (state, action) => {
+          state.loading.activities = false;
+          state.error.title = "Failed";
+          state.error.message = action.payload || "Failed to load activities";
+        });
+    }
+  });
+
+
+</script>

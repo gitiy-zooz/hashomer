@@ -1,0 +1,162 @@
+ <!-- <script id="ReduxCardSlice.js"> 
+ const fetchCardsData = createAsyncThunk(
+  'cards/fetchCardsData',
+  async () => {
+    const response = await fetch('/api/cards'); // שימי פה את הכתובת האמיתית לשרת שלך
+    const data = await response.json();
+    return data;
+  }
+);
+
+    // מצב התחלתי – כרטיסיות
+const initialCardsState = [
+  {
+    id: "guide",
+    type: "link",
+    title: "למאח המדריכה של",
+    subtitle: "← המעגמה הבחירה",
+    icon: "",
+    url: "/guide",
+    size: "medium",  },
+  {
+    id: "events",
+    type: "data",
+    title: "אירועים  הקרוב",
+    value: "",
+     size: "medium",
+    icon: ""
+  },
+  {
+    id: "progress",
+    type: "data",
+    title: "רמת ביצוע חודש נוכחי",
+    value: "",
+    subtitle: "",
+     size: "large",
+    icon: ""
+  }
+];
+
+const cardsSlice = createSlice({
+  name: "cards",
+  initialState: initialCardsState,
+  reducers: {
+    updateCard: (state, action) => {
+      const { id, changes } = action.payload;
+      const index = state.findIndex((card) => card.id === id);
+      if (index !== -1) {
+        state[index] = { ...state[index], ...changes };
+      }
+    },
+    resetCards: () => initialCardsState
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchCardsData.fulfilled, (state, action) => {
+      // נניח שהשרת מחזיר אובייקט כמו:
+      // { guideViews: 347, upcomingEvents: 12, monthlyProgress: "85%" }
+      const data = action.payload;
+
+      // עדכון כרטיסים קיימים
+      const guideIndex = state.findIndex((c) => c.id === "guide");
+      if (guideIndex !== -1) {
+        state[guideIndex].value = data.guideViews;
+      }
+
+      const eventsIndex = state.findIndex((c) => c.id === "events");
+      if (eventsIndex !== -1) {
+        state[eventsIndex].value = data.upcomingEvents;
+      }
+
+      const progressIndex = state.findIndex((c) => c.id === "progress");
+      if (progressIndex !== -1) {
+        state[progressIndex].value = data.monthlyProgress;
+      }
+    });
+  }
+});
+
+
+
+
+</script> -->
+
+<script id="ReduxCardSlice.js">
+  const fetchCardsData = createAsyncThunk(
+    "cards/fetchCardsData",
+    async () => {
+      // ⬇️ מוק-דאטה במקום קריאה אמיתית לשרת
+      await new Promise((resolve) => setTimeout(resolve, 500)); // דיליי קטן
+      return {
+        guideViews: 347,
+        upcomingEvents: 10,
+        monthlyProgress: "85%"
+      };
+    }
+  );
+
+  // מצב התחלתי – כרטיסיות
+  const initialCardsState = [
+    {
+      id: "guide",
+      type: "link",
+      title: "לאתר ההדרכה של",
+      subtitle: "התנועה החדשה ←",
+      icon: "",
+      url: "/guide",
+      size: "medium"
+    },
+    {
+      id: "events",
+      type: "data",
+      title: "אירועים  בחודש הקרוב",
+      value: "",
+      size: "medium",
+      icon: ""
+    },
+    {
+      id: "progress",
+      type: "data",
+      title: "רמת נוכחות חודש נוכחי",
+      value: "",
+      subtitle: "",
+      size: "large",
+      icon: ""
+    }
+  ];
+
+  const cardsSlice = createSlice({
+    name: "cards",
+    initialState: initialCardsState,
+    reducers: {
+      updateCard: (state, action) => {
+        const { id, changes } = action.payload;
+        const index = state.findIndex((card) => card.id === id);
+        if (index !== -1) {
+          state[index] = { ...state[index], ...changes };
+        }
+      },
+      resetCards: () => initialCardsState
+    },
+    extraReducers: (builder) => {
+      builder.addCase(fetchCardsData.fulfilled, (state, action) => {
+        const data = action.payload;
+
+        // עדכון כרטיסים קיימים
+        const guideIndex = state.findIndex((c) => c.id === "guide");
+        if (guideIndex !== -1) {
+          state[guideIndex].value = data.guideViews;
+        }
+
+        const eventsIndex = state.findIndex((c) => c.id === "events");
+        if (eventsIndex !== -1) {
+          state[eventsIndex].value = data.upcomingEvents;
+        }
+
+        const progressIndex = state.findIndex((c) => c.id === "progress");
+        if (progressIndex !== -1) {
+          state[progressIndex].value = data.monthlyProgress;
+        }
+      });
+    }
+  });
+</script>

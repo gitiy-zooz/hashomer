@@ -1,0 +1,21 @@
+<script>
+  const { createSlice, createAsyncThunk } = window.RTK;
+</script>
+
+{% include 'ReduxUserSlice.js' %}
+{% include 'ReduxRelatedSlice.js' %}
+{% include 'ReduxActivitiesSlice.js' %}
+
+<script id="ReduxStore.js">
+
+  const { configureStore } = window.RTK;
+
+  const store = configureStore({
+    reducer: {
+      user: userSlice.reducer,
+      related: relatedSlice.reducer,
+      activities: activitiesSlice.reducer,
+    }
+  });
+
+</script>

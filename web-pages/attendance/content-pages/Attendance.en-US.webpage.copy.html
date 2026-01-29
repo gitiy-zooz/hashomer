@@ -1,0 +1,852 @@
+{% include 'PopupTemplate' %}
+
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<!-- <link rel="stylesheet" href="/web-pages/Popup Insights/Popup Insights.en-US.customcss.css"> -->
+
+<script type="text/babel">
+  const contentUrl = "~/";
+
+  const ActivityAttendancePage = () => {
+    const [search, setSearch] = React.useState('');
+    const [showFileUpload, setShowFileUpload] = React.useState(false);
+
+    const { useSelector, useDispatch } = window.ReactRedux;
+    const dispatch = useDispatch();
+
+    // Get activity ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const activityId = urlParams.get('id');
+
+    // Get data from Redux
+    const { data: activities } = useSelector(state => state.activities);
+    const participants = useSelector(state => state.participants.data);
+    const allTrainees = useSelector(state => state.trainees.data);
+
+    // Find current activity
+    const currentActivity = activities.find(a => a.id === activityId) || {};
+    const mediaFiles = currentActivity?.files?.mediaFiles || [];
+    const documentFiles = currentActivity?.files?.documentFiles || [];
+    const lessonFiles = currentActivity?.files?.lessonFiles || [];
+    const worksheetFiles = currentActivity?.files?.worksheetFiles || [];
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+    const [openPopup, setOpenPopup] = React.useState(false);
+    const [activityDataForPopup, setActivityDataForPopup] = React.useState(null);
+
+
+    const totalFiles = mediaFiles.length + documentFiles.length + lessonFiles.length + worksheetFiles.length;
+    const worksheetCount = worksheetFiles.length;
+
+
+    React.useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }, []);
+
+    // פונקציות לקבצים
+    const getFileCategory = (fileName) => {
+      const ext = fileName.split('.').pop().toLowerCase();
+      const mediaExtensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'webp'];
+      return mediaExtensions.includes(ext) ? 'media' : 'document';
+    };
+
+    const handleLessonUpload = async (event) => {
+      const selectedFiles = Array.from(event.target.files);
+
+      if (!currentActivity) {
+        console.error('אין פעילות נוכחית');
+        return;
+      }
+
+      for (const file of selectedFiles) {
+        const fileData = {
+          name: file.name,
+          size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
+          type: 'lesson'
+        };
+
+        dispatch(addLessonFile({
+          activityId: currentActivity.id,
+          file: fileData
+        }));
+
+        try {
+          await saveFileToDataverse(fileData, currentActivity.id, 'lesson');
+          console.log(`קובץ מערך שיעור ${file.name} נשמר בהצלחה`);
+        } catch (error) {
+          console.error('שגיאה בשמירת קובץ:', error);
+        }
+      }
+
+      event.target.value = '';
+    };
+
+    const handleWorkSheetUpload = async (event) => {
+      const selectedFiles = Array.from(event.target.files);
+
+      if (!currentActivity) {
+        console.error('אין פעילות נוכחית');
+        return;
+      }
+
+      for (const file of selectedFiles) {
+        const fileData = {
+          name: file.name,
+          size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
+          type: 'worksheet'
+        };
+
+        dispatch(addWorksheetFile({
+          activityId: currentActivity.id,
+          file: fileData
+        }));
+
+        try {
+          await saveFileToDataverse(fileData, currentActivity.id, 'worksheet');
+          console.log(`קובץ דפי עבודה ${file.name} נשמר בהצלחה`);
+        } catch (error) {
+          console.error('שגיאה בשמירת קובץ:', error);
+        }
+      }
+
+      event.target.value = '';
+    };
+
+    const saveFileToDataverse = async (fileData, activityId, category) => {
+      const base64Data = await fileToBase64(fileData.file || new Blob());
+
+      const mockDataverseRecord = {
+        entityName: 'hashomer_activityfiles',
+        data: {
+          'hashomer_filename': fileData.name,
+          'hashomer_filesize': fileData.size,
+          'hashomer_filetype': fileData.type,
+          'hashomer_category': category,
+          'hashomer_activityid': activityId,
+          'hashomer_uploaddate': new Date().toISOString(),
+          'hashomer_filedata': base64Data
+        }
+      };
+
+      console.log('שמירה ב-Dataverse:', mockDataverseRecord);
+      return mockDataverseRecord;
+    };
+
+    const fileToBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    };
+
+    // Fetch activities first (if not loaded)
+    React.useEffect(() => {
+      if (activities.length === 0) {
+        dispatch(window.fetchActivitiesData());
+      }
+    }, [activities.length, dispatch]);
+
+    // Fetch participants for this activity
+    React.useEffect(() => {
+      if (activityId) {
+        console.log('Fetching participants for activity:', activityId);
+        dispatch(window.fetchParticipantsData({ activityId }));
+      }
+    }, [activityId, dispatch]);
+
+    const presentCount = React.useMemo(() =>
+      participants.filter(p => p.status === "נוכח" || p.status === "איחור").length,
+      [participants]
+    );
+
+    const attendanceRate = React.useMemo(() =>
+      participants.length > 0 ? Math.round((presentCount / participants.length) * 100) : 0,
+      [participants.length, presentCount]
+    );
+
+    const earlyLeaveCount = React.useMemo(() =>
+      participants.filter(p => p.arrived).length,
+      [participants]
+    );
+
+    const handleFilesCardClick = () => {
+      setShowFileUpload(!showFileUpload);
+    };
+
+    // Save to Dataverse helper function using webapi.safeAjax
+    const saveAttendanceToDataverse = (participantId, updates) => {
+      console.log('=== saveAttendanceToDataverse called ===');
+      console.log('participantId:', participantId, 'type:', typeof participantId);
+      console.log('updates:', updates);
+      
+      if (typeof webapi === 'undefined' || typeof webapi.safeAjax !== 'function') {
+        alert('❌ שגיאה: מערכת ה-API לא זמינה');
+        console.error('webapi is undefined or safeAjax not available');
+        return;
+      }
+
+      if (!participantId || typeof participantId !== 'string') {
+        alert('❌ שגיאה: מזהה משתתף לא תקין');
+        console.error('Invalid participantId:', participantId);
+        return;
+      }
+
+      const url = `/_api/zooz_attendances(${participantId})`;
+      const jsonString = JSON.stringify(updates);
+      console.log('API URL:', url);
+      console.log('JSON payload:', jsonString);
+      
+      const headers = {
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        "Accept": "application/json",
+        "If-Match": "*"
+      };
+
+      webapi.safeAjax({
+        type: "PATCH",
+        url: url,
+        contentType: "application/json",
+        data: jsonString,
+        headers: headers,
+        success: function (data) {
+          console.log('✅ Save successful:', data);
+          // Refresh participants data to show updated values
+          if (activityId && window.fetchParticipantsData) {
+            dispatch(window.fetchParticipantsData({ activityId }));
+          }
+        },
+        error: function (xhr) {
+          console.error('❌ Save failed');
+          console.error('Status:', xhr.status);
+          console.error('Status Text:', xhr.statusText);
+          console.error('Response:', xhr.responseText);
+          
+          let errorMessage = 'אירעה תקלה בשמירת הנתונים';
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            console.error('Parsed error:', errorData);
+            if (errorData.error && errorData.error.message) {
+              errorMessage += ': ' + errorData.error.message;
+            }
+          } catch (e) {
+            if (xhr.statusText) {
+              errorMessage += ': ' + xhr.statusText;
+            }
+          }
+          alert('❌ ' + errorMessage);
+        }
+      });
+    };
+
+
+    const handleStatusClick = (id, newStatus) => {
+      // Map status to Dataverse value - MUST BE STRING for Choice fields
+      let statusValue;
+      if (newStatus === "נוכח") statusValue = "696480000";
+      else if (newStatus === "חיסור") statusValue = "696480001";
+      else if (newStatus === "איחור") statusValue = "696480002";
+
+      // FIXED: Use zooz_status_p (the actual schema field name)
+      saveAttendanceToDataverse(id, { zooz_status_p: statusValue });
+    };
+
+    const handleNoteChange = (id, value) => {
+      // FIXED: Check if notes field needs _p suffix too
+      saveAttendanceToDataverse(id, { zooz_notes: value });
+    };
+    // בדיקה אם השדה קיים ב־Dataverse (אפשר להחליף את זה בבדיקה אמיתית אם יש לך API)
+    const isZoozArrivedAvailable = false; // שנה ל־true אם השדה נוסף*/
+
+    // const handleCheckClick = id => {
+    //   if (!isZoozArrivedAvailable) {
+    //     /*alert('⚠️ לא ניתן לעדכן יציאה מוקדמת – השדה לא קיים במערכת');*/
+    //     /*return;*/
+    //   }
+    //   const participant = participants.find(p => p.id === id);
+    //   const newValue = !participant?.arrived;
+    //   saveAttendanceToDataverse(id, { zooz_arrived: newValue ? 1 : 0 });
+    // };
+    const handleCheckClick = id => {
+      const participant = participants.find(p => p.id === id);
+      if (!participant) return;
+      // הפוך את הערך בכל לחיצה
+      const newValue = !participant.arrived;
+      saveAttendanceToDataverse(id, { zooz_arrived: newValue ? 1 : 0 });
+    };
+
+    const handleSmileyClick = id => {
+      const participant = participants.find(p => p.id === id);
+      if (!participant) return;
+      // Toggle smiley state
+      const newValue = !participant.smiley;
+      saveAttendanceToDataverse(id, { zooz_smiley: newValue ? 1 : 0 });
+    };
+    // const handleCheckClick = id => {
+    //   const participant = participants.find(p => p.id === id);
+    //   if (!participant) return;
+    //   if (participant.arrived) return; // אם כבר true, לא לעשות כלום
+    //   saveAttendanceToDataverse(id, { zooz_arrived: 1 });
+    // };
+    // ברכיב CheckButton:
+    render: (trainee, handlers) => (
+      <CheckButton
+        trainee={trainee}
+        onCheckClick={isZoozArrivedAvailable ? handlers.onCheckClick : undefined}
+        // getCheckButtonStyle={handlers.getCheckButtonStyle}
+        disabled={!isZoozArrivedAvailable}
+      />)
+    // const handleCheckClick = id => {
+    //   // DISABLED: zooz_arrived field doesn't exist in Dataverse yet
+    //   console.warn('⚠️ Early leave field (zooz_arrived) is disabled - field not yet in Dataverse');
+
+    //   // Uncomment when field is ready:
+    //   // const participant = participants.find(p => p.id === id);
+    //   // const newValue = !participant?.arrived;
+    //   // saveAttendanceToDataverse(id, { zooz_arrived: newValue ? 1 : 0 });
+    // };
+
+    // const handleLikeClick = (id, value) => {
+    //   // Map estimate to Dataverse value
+    //   let estimateValue;
+    //   if (value === "positive") estimateValue = 696480000;
+    //   else if (value === "neutral") estimateValue = 696480001;
+    //   else if (value === "negative") estimateValue = 696480002;
+
+    //   // FIXED: Check if estimate field needs _p suffix too
+    //   saveAttendanceToDataverse(id, { zooz_estimate: estimateValue });
+    // };
+    //     const handleLikeClick = (id, value) => {
+    //   let estimateValue;
+    //   if (value === true) estimateValue = 696480000;      // positive
+    //   else if (value === null) estimateValue = 696480001; // neutral
+    //   else if (value === false) estimateValue = 696480002; // negative
+
+    //   saveAttendanceToDataverse(id, { zooz_estimate: estimateValue });
+    // };
+    const handleDownloadAll = () => {
+      const allFiles = [...mediaFiles, ...documentFiles, ...lessonFiles, ...worksheetFiles];
+      allFiles.forEach(file => {
+        const link = document.createElement('a');
+        link.href = file.url || '#';
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+      console.log("Downloading all files:", allFiles);
+    };
+
+    const getButtonStyle = (currentStatus, buttonStatus) => {
+      if (currentStatus === buttonStatus) {
+        if (buttonStatus === "נוכח") return { background: "#CFEDD9", color: "#2D5A3A", border: "1.5px solid #B6DEC3" };
+        if (buttonStatus === "חיסור") return { background: "#FEE2E2", color: "#8B1538", border: "1.5px solid #F5C8C8" };
+        if (buttonStatus === "איחור") return { background: "#F7DDA7", color: "#8B6914", border: "1.5px solid #F2CF87" };
+      }
+      return { background: "#e0e0e0", color: "#333", border: "1px solid #ccc" };
+    };
+    // const getCheckButtonStyle = (trainee) => {
+    //   const isEnabled = trainee.status === "נוכח" || trainee.status === "איחור";
+
+    //   if (!isEnabled) {
+    //     return {
+    //       iconFill: "#E6E5E5",
+    //       iconStroke: "#D4D4D4",
+    //       checkStroke: "transparent"
+    //     };
+    //   }
+
+    //   if (trainee.arrived) {
+    //     return {
+    //       iconFill: "#0F7BB6",
+    //       iconStroke: "#0F7BB6",
+    //       checkStroke: "white"      // לבן אמיתי
+    //     };
+    //   }
+
+    //   return {
+    //     iconFill: "#E6E5E5",
+    //     iconStroke: "#D4D4D4",
+    //     checkStroke: "transparent"
+    //   };
+    // };
+
+    // const getCheckButtonStyle = (trainee) => {
+    //   const isEnabled = trainee.status === "נוכח" || trainee.status === "איחור";
+    //   // מצב לא פעיל
+    //   if (!isEnabled) {
+    //     return {
+    //       background: "#E6E5E5",
+    //       border: "1px solid #D4D4D4",
+    //       opacity: 0.4,
+    //       iconFill: "#E6E5E5",
+    //       iconStroke: "#D4D4D4",
+    //       checkStroke: "transparent"
+    //     };
+    //   }
+    //   // נלחץ
+    //   if (trainee.arrived) {
+    //     return {
+    //       background: "rgba(15, 123, 182, 0.4)",
+    //       border: "1px solid #0F7BB6",
+    //       opacity: 1,
+    //       iconFill: "rgba(15, 123, 182, 0.4)",
+    //       iconStroke: "#0F7BB6",
+    //       checkStroke: "white"
+    //     };
+    //   }
+    //   // פעיל אבל לא נלחץ
+    //   return {
+    //     background: "#E6E5E5",
+    //     border: "1px solid #D4D4D4",
+    //     opacity: 1,
+    //     iconFill: "#E6E5E5",
+    //     iconStroke: "#D4D4D4",
+    //     checkStroke: "transparent"
+    //   };
+    // };
+    const getCheckButtonStyle = (trainee) => {
+      const isEnabled = trainee.status === "נוכח" || trainee.status === "איחור";
+      console.log("new svg getCheckButtonStyle");
+
+      // מצב לא פעיל - disabled
+      if (!isEnabled) {
+        return (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <g opacity="0.4">
+                <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" fill="#E6E5E5" />
+                <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" stroke="#D4D4D4" />
+                <path d="M18.714 10.4019L11.714 17.4019C11.6531 17.4631 11.5806 17.5116 11.5008 17.5447C11.4211 17.5779 11.3356 17.5949 11.2492 17.5949C11.1628 17.5949 11.0773 17.5779 10.9975 17.5447C10.9178 17.5116 10.8453 17.4631 10.7843 17.4019L7.72184 14.3394C7.6608 14.2784 7.61237 14.2059 7.57934 14.1261C7.5463 14.0464 7.5293 13.9609 7.5293 13.8746C7.5293 13.7882 7.5463 13.7027 7.57934 13.623C7.61237 13.5432 7.6608 13.4708 7.72184 13.4097C7.78289 13.3487 7.85536 13.3002 7.93511 13.2672C8.01487 13.2342 8.10036 13.2172 8.18669 13.2172C8.27301 13.2172 8.3585 13.2342 8.43826 13.2672C8.51801 13.3002 8.59048 13.3487 8.65153 13.4097L11.2497 16.0079L17.7854 9.47331C17.9087 9.35002 18.0759 9.28076 18.2503 9.28076C18.4246 9.28076 18.5918 9.35002 18.7151 9.47331C18.8384 9.59659 18.9077 9.7638 18.9077 9.93815C18.9077 10.1125 18.8384 10.2797 18.7151 10.403L18.714 10.4019Z" fill="#7A7A7A" />
+              </g>
+            </svg>
+
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g opacity="0.5">
+                <circle cx="20" cy="20" r="19" fill="#F5F5F5" stroke="#BDBDBD" strokeWidth="2" />
+                <path d="M28 15L18 25L12 19" stroke="#9E9E9E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </g>
+            </svg>
+          </>
+        );
+      }
+
+      // נלחץ - arrived (כחול)
+      if (trainee.arrived) {
+        return (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <g opacity="0.4">
+                <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" fill="#E6E5E5" />
+                <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" stroke="#D4D4D4" />
+                <path d="M18.714 10.4019L11.714 17.4019C11.6531 17.4631 11.5806 17.5116 11.5008 17.5447C11.4211 17.5779 11.3356 17.5949 11.2492 17.5949C11.1628 17.5949 11.0773 17.5779 10.9975 17.5447C10.9178 17.5116 10.8453 17.4631 10.7843 17.4019L7.72184 14.3394C7.6608 14.2784 7.61237 14.2059 7.57934 14.1261C7.5463 14.0464 7.5293 13.9609 7.5293 13.8746C7.5293 13.7882 7.5463 13.7027 7.57934 13.623C7.61237 13.5432 7.6608 13.4708 7.72184 13.4097C7.78289 13.3487 7.85536 13.3002 7.93511 13.2672C8.01487 13.2342 8.10036 13.2172 8.18669 13.2172C8.27301 13.2172 8.3585 13.2342 8.43826 13.2672C8.51801 13.3002 8.59048 13.3487 8.65153 13.4097L11.2497 16.0079L17.7854 9.47331C17.9087 9.35002 18.0759 9.28076 18.2503 9.28076C18.4246 9.28076 18.5918 9.35002 18.7151 9.47331C18.8384 9.59659 18.9077 9.7638 18.9077 9.93815C18.9077 10.1125 18.8384 10.2797 18.7151 10.403L18.714 10.4019Z" fill="#7A7A7A" />
+              </g>
+            </svg>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="20" r="19" fill="#E3F2FD" stroke="#2196F3" strokeWidth="2" />
+              <path d="M28 15L18 25L12 19" stroke="#1565C0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </>
+        );
+      }
+
+      // פעיל אבל לא נלחץ
+      return (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <g opacity="0.4">
+              <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" fill="#E6E5E5" />
+              <rect x="0.5" y="0.5" width="25" height="25" rx="12.5" stroke="#D4D4D4" />
+              <path d="M18.714 10.4019L11.714 17.4019C11.6531 17.4631 11.5806 17.5116 11.5008 17.5447C11.4211 17.5779 11.3356 17.5949 11.2492 17.5949C11.1628 17.5949 11.0773 17.5779 10.9975 17.5447C10.9178 17.5116 10.8453 17.4631 10.7843 17.4019L7.72184 14.3394C7.6608 14.2784 7.61237 14.2059 7.57934 14.1261C7.5463 14.0464 7.5293 13.9609 7.5293 13.8746C7.5293 13.7882 7.5463 13.7027 7.57934 13.623C7.61237 13.5432 7.6608 13.4708 7.72184 13.4097C7.78289 13.3487 7.85536 13.3002 7.93511 13.2672C8.01487 13.2342 8.10036 13.2172 8.18669 13.2172C8.27301 13.2172 8.3585 13.2342 8.43826 13.2672C8.51801 13.3002 8.59048 13.3487 8.65153 13.4097L11.2497 16.0079L17.7854 9.47331C17.9087 9.35002 18.0759 9.28076 18.2503 9.28076C18.4246 9.28076 18.5918 9.35002 18.7151 9.47331C18.8384 9.59659 18.9077 9.7638 18.9077 9.93815C18.9077 10.1125 18.8384 10.2797 18.7151 10.403L18.714 10.4019Z" fill="#7A7A7A" />
+            </g>
+          </svg>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="19" fill="#FAFAFA" stroke="#9E9E9E" strokeWidth="2" />
+            <path d="M28 15L18 25L12 19" stroke="#757575" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </>
+      );
+    };
+
+
+    // Smiley Button Component
+    const SmileyButton = ({ trainee, onSmileyClick }) => {
+      const isActive = trainee.smiley === true;
+
+      return (
+        <button
+          className="smiley-btn"
+          onClick={() => onSmileyClick(trainee.id)}
+        >
+          {isActive ? (
+            // Active/Filled smiley
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M23.1239 19.4476C24.3373 17.5573 25.041 15.3086 25.041 12.8955C25.041 6.18774 19.6033 0.75 12.8955 0.75C6.18774 0.75 0.75 6.18774 0.75 12.8955C0.75 19.6033 6.18774 25.041 12.8955 25.041C15.3279 25.041 17.5932 24.326 19.4928 23.0947" fill="#1560A0"/>
+              <path d="M23.1239 19.4476C24.3373 17.5573 25.041 15.3086 25.041 12.8955C25.041 6.18774 19.6033 0.75 12.8955 0.75C6.18774 0.75 0.75 6.18774 0.75 12.8955C0.75 19.6033 6.18774 25.041 12.8955 25.041C15.3279 25.041 17.5932 24.326 19.4928 23.0947C21.3925 21.8634 22.6552 20.2848 23.1239 19.4476Z" stroke="#1560A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7.9165 16.1248C8.80318 17.983 10.6995 19.267 12.8957 19.267C15.0919 19.267 16.9882 17.983 17.8749 16.1248" stroke="white" strokeWidth="2" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9.22119 9.48462V12.082" stroke="white" strokeWidth="2" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16.5698 9.48462V12.082" stroke="white" strokeWidth="2" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : (
+            // Default/Outline smiley
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M23.1239 19.4476C24.3373 17.5573 25.041 15.3086 25.041 12.8955C25.041 6.18774 19.6033 0.75 12.8955 0.75C6.18774 0.75 0.75 6.18774 0.75 12.8955C0.75 19.6033 6.18774 25.041 12.8955 25.041C15.3279 25.041 17.5932 24.326 19.4928 23.0947" stroke="#1560A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7.9165 16.1248C8.80318 17.983 10.6995 19.267 12.8957 19.267C15.0919 19.267 16.9882 17.983 17.8749 16.1248" stroke="#1560A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9.22119 9.48462V12.082" stroke="#1560A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16.5698 9.48462V12.082" stroke="#1560A0" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </button>
+      );
+    };
+
+    const handleFinishActivity = () => {
+      console.log('🔵 handleFinishActivity called');
+      console.log('🔵 ActivityPopup available?', typeof window.ActivityPopup);
+
+      // Prepare all files for download
+      const allFiles = [...mediaFiles, ...documentFiles, ...lessonFiles, ...worksheetFiles];
+
+      // Prepare all data to pass to popup
+      const activityData = {
+        activityId: currentActivity?.id,
+        activityTitle: currentActivity?.title || 'פעילות',
+        tag: currentActivity?.tag,
+        dateTime: currentActivity
+          ? `${currentActivity.startDate} • ${currentActivity.startTime}-${currentActivity.endTime} • ${currentActivity.branchName}`
+          : '',
+        totalTrainees: participants.length,
+        presentCount,
+        attendanceRate,
+        earlyLeaveCount,
+        notesCount: participants.filter(p => p.note && p.note.trim()).length,
+        allFiles: allFiles,
+        participants: participants // Pass full participants data for reference
+      };
+
+      console.log('סיום פעילות - נתונים:', activityData);
+
+      setActivityDataForPopup(activityData);
+      console.log('🔵 Before setOpenPopup - openPopup:', openPopup);
+      setOpenPopup(true);
+      console.log('🔵 After setOpenPopup');
+    };
+
+    const columns = [
+      {
+        header: "שם",
+        accessor: "name"
+      },
+      {
+        header: "טלפון",
+        accessor: "phone",
+        render: (trainee) => (
+          <div className="phone-cell">
+            <span>{trainee.phone}</span>
+
+          </div>
+        )
+      },
+      {
+        header: "סטטוס",
+        render: (trainee, handlers) => (
+          <StatusButtons
+            trainee={trainee}
+            onStatusClick={handlers.onStatusClick}
+            getButtonStyle={handlers.getButtonStyle}
+          />
+        )
+      },
+      {
+        header: "יצא/ה מוקדם",
+        render: (trainee, handlers) => (
+          <CheckButton
+            trainee={trainee}
+            onCheckClick={handlers.onCheckClick}
+            getCheckButtonStyle={handlers.getCheckButtonStyle}
+          />
+        )
+      },
+      {
+        header: "הערות",
+        render: (trainee, handlers) => (
+          <NoteInput
+            trainee={trainee}
+            onNoteChange={handlers.onNoteChange}
+          />
+        )
+      },
+      {
+        header: "הערכת חניך",
+        render: (trainee, handlers) => (
+          <SmileyButton
+            trainee={trainee}
+            onSmileyClick={handlers.onSmileyClick}
+          />
+        )
+      },
+      {
+        header: " ",  // עמודה חדשה לווצאפ
+        render: (trainee) => (
+          <WhatsAppButton phone={trainee.phone} />
+        )
+      }
+
+    ];
+
+
+
+    return (
+      <div className="bigContentDiv1">
+        <div className="page-layout">
+          {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile />}
+          <div className="bigContentDiv activity-attendance-page">
+            <div className="activity-header">
+
+              {/* Desktop Header */}
+
+              {!isMobile && (
+                <div className="desktop-header">
+                  <div className="titleDiv">
+                    <h1 id="titleText">{currentActivity?.title || 'יום המעשים הטובים'}</h1>
+                    <Tag tag={currentActivity.tag} />
+                    <button id="titleButton" onClick={handleFinishActivity}>
+                      סיום פעילות
+                    </button>
+                  </div>
+                  <div>
+                    <p id="topText">
+                      {currentActivity
+                        ? `${currentActivity.startDate} • ${currentActivity.startTime}-${currentActivity.endTime} • ${currentActivity.branchName}`
+                        : '24 אוג\'~שעה 09:00-18:00 סניף נהריה'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile Header */}
+              {isMobile && (
+                <div className="activity-header mobile-header">
+                  <div className="mobile-header-top">
+                    <button
+                      className="back-home"
+                      onClick={() => window.location.href = '/'}
+                    >
+                      <svg width="18" height="15" viewBox="0 0 18 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.7806 8.03104L11.0306 14.781C10.8899 14.9218 10.699 15.0008 10.5 15.0008C10.301 15.0008 10.1101 14.9218 9.96937 14.781C9.82864 14.6403 9.74958 14.4494 9.74958 14.2504C9.74958 14.0514 9.82864 13.8605 9.96937 13.7198L15.4397 8.25042H0.75C0.551088 8.25042 0.360322 8.1714 0.21967 8.03075C0.0790178 7.8901 0 7.69933 0 7.50042C0 7.3015 0.0790178 7.11074 0.21967 6.97009C0.360322 6.82943 0.551088 6.75042 0.75 6.75042H15.4397L9.96937 1.28104C9.82864 1.14031 9.74958 0.94944 9.74958 0.750417C9.74958 0.551394 9.82864 0.360523 9.96937 0.219792C10.1101 0.0790615 10.301 0 10.5 0C10.699 0 10.8899 0.0790615 11.0306 0.219792L17.7806 6.96979C17.8504 7.03945 17.9057 7.12216 17.9434 7.21321C17.9812 7.30426 18.0006 7.40186 18.0006 7.50042C18.0006 7.59898 17.9812 7.69657 17.9434 7.78762C17.9057 7.87867 17.8504 7.96139 17.7806 8.03104Z" fill="#181818" />
+                      </svg>
+
+
+                    </button>
+                    <button id="titleButton-mobile" onClick={handleFinishActivity}>
+                      סיום פעילות
+                    </button>
+                  </div>
+                  <div className="activity-title-section">
+                    <div className="title-with-tag">
+                      <h1 id="titleText">{currentActivity?.title || 'יום המעשים הטובים'}</h1>
+                      <Tag tag={currentActivity.tag} />
+                    </div>
+                    <p id="topText">
+                      {currentActivity
+                        ? `${currentActivity.startDate} • ${currentActivity.startTime}-${currentActivity.endTime} • ${currentActivity.branchName}`
+                        : '24 אוג\'~שעה 09:00-18:00 סניף נהריה'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="divContent">
+                {/*<div className="new-top-cards">*/}
+                <div className="statusCard files-card">
+                  <div className="card-details">
+                    <div className="card-title">
+                      <div className="card-title-right">
+                        {isMobile ? (
+                          <>
+                            <div className="mobile-header-files">
+                              <div className="mobile-numberbutton-download-btn">
+
+                                <p className="numberbutton">{totalFiles}</p>
+
+                                <button className="file-action-btn download-btn mobile-download-btn" onClick={handleDownloadAll}>
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15 8.5V12.5C15 12.7652 14.8946 13.0196 14.7071 13.2071C14.5196 13.3946 14.2652 13.5 14 13.5H2C1.73478 13.5 1.48043 13.3946 1.29289 13.2071C1.10536 13.0196 1 12.7652 1 12.5V8.5C1 8.23478 1.10536 7.98043 1.29289 7.79289C1.48043 7.60536 1.73478 7.5 2 7.5H4.5C4.63261 7.5 4.75979 7.55268 4.85355 7.64645C4.94732 7.74021 5 7.86739 5 8C5 8.13261 4.94732 8.25979 4.85355 8.35355C4.75979 8.44732 4.63261 8.5 4.5 8.5H2V12.5H14V8.5H11.5C11.3674 8.5 11.2402 8.44732 11.1464 8.35355C11.0527 8.25979 11 8.13261 11 8C11 7.86739 11.0527 7.74021 11.1464 7.64645C11.2402 7.55268 11.3674 7.5 11.5 7.5H14C14.2652 7.5 14.5196 7.60536 14.7071 7.79289C14.8946 7.98043 15 8.23478 15 8.5ZM7.64625 8.35375C7.69269 8.40024 7.74783 8.43712 7.80853 8.46228C7.86923 8.48744 7.93429 8.50039 8 8.50039C8.06571 8.50039 8.13077 8.48744 8.19147 8.46228C8.25217 8.43712 8.30731 8.40024 8.35375 8.35375L11.3538 5.35375C11.4476 5.25993 11.5003 5.13268 11.5003 5C11.5003 4.86732 11.4476 4.74007 11.3538 4.64625C11.2599 4.55243 11.1327 4.49972 11 4.49972C10.8673 4.49972 10.7401 4.55243 10.6462 4.64625L8.5 6.79313V1.5C8.5 1.36739 8.44732 1.24021 8.35355 1.14645C8.25979 1.05268 8.13261 1 8 1C7.86739 1 7.74021 1.05268 7.64645 1.14645C7.55268 1.24021 7.5 1.36739 7.5 1.5V6.79313L5.35375 4.64625C5.25993 4.55243 5.13268 4.49972 5 4.49972C4.86732 4.49972 4.74007 4.55243 4.64625 4.64625C4.55243 4.74007 4.49972 4.86732 4.49972 5C4.49972 5.13268 4.55243 5.25993 4.64625 5.35375L7.64625 8.35375ZM12.5 10.5C12.5 10.3517 12.456 10.2067 12.3736 10.0833C12.2912 9.95999 12.1741 9.86386 12.037 9.80709C11.9 9.75033 11.7492 9.73547 11.6037 9.76441C11.4582 9.79335 11.3246 9.86478 11.2197 9.96967C11.1148 10.0746 11.0434 10.2082 11.0144 10.3537C10.9855 10.4992 11.0003 10.65 11.0571 10.787C11.1139 10.9241 11.21 11.0412 11.3333 11.1236C11.4567 11.206 11.6017 11.25 11.75 11.25C11.9489 11.25 12.1397 11.171 12.2803 11.0303C12.421 10.8897 12.5 10.6989 12.5 10.5Z" fill="white" />
+                                  </svg>
+                                </button>
+                              </div>
+
+                              <h3>קבצים מצורפים</h3>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <h3>קבצים מצורפים</h3>
+                            <p className="numberbutton">({totalFiles})</p>
+                          </>
+                        )}
+                      </div>
+                      {!isMobile && (
+                        <button className="file-action-btn download-btn desktop-download-btn" onClick={handleDownloadAll}>
+                          הורדת הכל
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 8.5V12.5C15 12.7652 14.8946 13.0196 14.7071 13.2071C14.5196 13.3946 14.2652 13.5 14 13.5H2C1.73478 13.5 1.48043 13.3946 1.29289 13.2071C1.10536 13.0196 1 12.7652 1 12.5V8.5C1 8.23478 1.10536 7.98043 1.29289 7.79289C1.48043 7.60536 1.73478 7.5 2 7.5H4.5C4.63261 7.5 4.75979 7.55268 4.85355 7.64645C4.94732 7.74021 5 7.86739 5 8C5 8.13261 4.94732 8.25979 4.85355 8.35355C4.75979 8.44732 4.63261 8.5 4.5 8.5H2V12.5H14V8.5H11.5C11.3674 8.5 11.2402 8.44732 11.1464 8.35355C11.0527 8.25979 11 8.13261 11 8C11 7.86739 11.0527 7.74021 11.1464 7.64645C11.2402 7.55268 11.3674 7.5 11.5 7.5H14C14.2652 7.5 14.5196 7.60536 14.7071 7.79289C14.8946 7.98043 15 8.23478 15 8.5ZM7.64625 8.35375C7.69269 8.40024 7.74783 8.43712 7.80853 8.46228C7.86923 8.48744 7.93429 8.50039 8 8.50039C8.06571 8.50039 8.13077 8.48744 8.19147 8.46228C8.25217 8.43712 8.30731 8.40024 8.35375 8.35375L11.3538 5.35375C11.4476 5.25993 11.5003 5.13268 11.5003 5C11.5003 4.86732 11.4476 4.74007 11.3538 4.64625C11.2599 4.55243 11.1327 4.49972 11 4.49972C10.8673 4.49972 10.7401 4.55243 10.6462 4.64625L8.5 6.79313V1.5C8.5 1.36739 8.44732 1.24021 8.35355 1.14645C8.25979 1.05268 8.13261 1 8 1C7.86739 1 7.74021 1.05268 7.64645 1.14645C7.55268 1.24021 7.5 1.36739 7.5 1.5V6.79313L5.35375 4.64625C5.25993 4.55243 5.13268 4.49972 5 4.49972C4.86732 4.49972 4.74007 4.55243 4.64625 4.64625C4.55243 4.74007 4.49972 4.86732 4.49972 5C4.49972 5.13268 4.55243 5.25993 4.64625 5.35375L7.64625 8.35375ZM12.5 10.5C12.5 10.3517 12.456 10.2067 12.3736 10.0833C12.2912 9.95999 12.1741 9.86386 12.037 9.80709C11.9 9.75033 11.7492 9.73547 11.6037 9.76441C11.4582 9.79335 11.3246 9.86478 11.2197 9.96967C11.1148 10.0746 11.0434 10.2082 11.0144 10.3537C10.9855 10.4992 11.0003 10.65 11.0571 10.787C11.1139 10.9241 11.21 11.0412 11.3333 11.1236C11.4567 11.206 11.6017 11.25 11.75 11.25C11.9489 11.25 12.1397 11.171 12.2803 11.0303C12.421 10.8897 12.5 10.6989 12.5 10.5Z" fill="white" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    {!isMobile && (
+                      <div className="file-upload-links">
+                        <div className="file-upload-link" onClick={() => handleDownloadCategory(lessonFiles)}>
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18.75 10.625V15.625C18.75 15.9565 18.6183 16.2745 18.3839 16.5089C18.1495 16.7433 17.8315 16.875 17.5 16.875H2.5C2.16848 16.875 1.85054 16.7433 1.61612 16.5089C1.3817 16.2745 1.25 15.9565 1.25 15.625V10.625C1.25 10.2935 1.3817 9.97554 1.61612 9.74112C1.85054 9.5067 2.16848 9.375 2.5 9.375H5.625C5.79076 9.375 5.94973 9.44085 6.06694 9.55806C6.18415 9.67527 6.25 9.83424 6.25 10C6.25 10.1658 6.18415 10.3247 6.06694 10.4419C5.94973 10.5592 5.79076 10.625 5.625 10.625H2.5V15.625H17.5V10.625H14.375C14.2092 10.625 14.0503 10.5592 13.9331 10.4419C13.8158 10.3247 13.75 10.1658 13.75 10C13.75 9.83424 13.8158 9.67527 13.9331 9.55806C14.0503 9.44085 14.2092 9.375 14.375 9.375H17.5C17.8315 9.375 18.1495 9.5067 18.3839 9.74112C18.6183 9.97554 18.75 10.2935 18.75 10.625ZM9.55781 10.4422C9.61586 10.5003 9.68479 10.5464 9.76066 10.5779C9.83654 10.6093 9.91787 10.6255 10 10.6255C10.0821 10.6255 10.1635 10.6093 10.2393 10.5779C10.3152 10.5464 10.3841 10.5003 10.4422 10.4422L14.1922 6.69219C14.3095 6.57491 14.3753 6.41585 14.3753 6.25C14.3753 6.08415 14.3095 5.92509 14.1922 5.80781C14.0749 5.69054 13.9159 5.62465 13.75 5.62465C13.5841 5.62465 13.4251 5.69054 13.3078 5.80781L10.625 8.49141V1.875C10.625 1.70924 10.5592 1.55027 10.4419 1.43306C10.3247 1.31585 10.1658 1.25 10 1.25C9.83424 1.25 9.67527 1.31585 9.55806 1.43306C9.44085 1.55027 9.375 1.70924 9.375 1.875V8.49141L6.69219 5.80781C6.57491 5.69054 6.41585 5.62465 6.25 5.62465C6.08415 5.62465 5.92509 5.69054 5.80781 5.80781C5.69054 5.92509 5.62465 6.08415 5.62465 6.25C5.62465 6.41585 5.69054 6.57491 5.80781 6.69219L9.55781 10.4422ZM15.625 13.125C15.625 12.9396 15.57 12.7583 15.467 12.6042C15.364 12.45 15.2176 12.3298 15.0463 12.2589C14.875 12.1879 14.6865 12.1693 14.5046 12.2055C14.3227 12.2417 14.1557 12.331 14.0246 12.4621C13.8935 12.5932 13.8042 12.7602 13.768 12.9421C13.7318 13.124 13.7504 13.3125 13.8214 13.4838C13.8923 13.6551 14.0125 13.8015 14.1667 13.9045C14.3208 14.0075 14.5021 14.0625 14.6875 14.0625C14.9361 14.0625 15.1746 13.9637 15.3504 13.7879C15.5262 13.6121 15.625 13.3736 15.625 13.125Z" fill="#1560A0" />
+                          </svg>
+                          <span>מערך שיעור יום המעשים.doc</span>
+                        </div>
+                        <div className="file-upload-link" onClick={() => handleDownloadCategory(worksheetFiles)}>
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18.75 10.625V15.625C18.75 15.9565 18.6183 16.2745 18.3839 16.5089C18.1495 16.7433 17.8315 16.875 17.5 16.875H2.5C2.16848 16.875 1.85054 16.7433 1.61612 16.5089C1.3817 16.2745 1.25 15.9565 1.25 15.625V10.625C1.25 10.2935 1.3817 9.97554 1.61612 9.74112C1.85054 9.5067 2.16848 9.375 2.5 9.375H5.625C5.79076 9.375 5.94973 9.44085 6.06694 9.55806C6.18415 9.67527 6.25 9.83424 6.25 10C6.25 10.1658 6.18415 10.3247 6.06694 10.4419C5.94973 10.5592 5.79076 10.625 5.625 10.625H2.5V15.625H17.5V10.625H14.375C14.2092 10.625 14.0503 10.5592 13.9331 10.4419C13.8158 10.3247 13.75 10.1658 13.75 10C13.75 9.83424 13.8158 9.67527 13.9331 9.55806C14.0503 9.44085 14.2092 9.375 14.375 9.375H17.5C17.8315 9.375 18.1495 9.5067 18.3839 9.74112C18.6183 9.97554 18.75 10.2935 18.75 10.625ZM9.55781 10.4422C9.61586 10.5003 9.68479 10.5464 9.76066 10.5779C9.83654 10.6093 9.91787 10.6255 10 10.6255C10.0821 10.6255 10.1635 10.6093 10.2393 10.5779C10.3152 10.5464 10.3841 10.5003 10.4422 10.4422L14.1922 6.69219C14.3095 6.57491 14.3753 6.41585 14.3753 6.25C14.3753 6.08415 14.3095 5.92509 14.1922 5.80781C14.0749 5.69054 13.9159 5.62465 13.75 5.62465C13.5841 5.62465 13.4251 5.69054 13.3078 5.80781L10.625 8.49141V1.875C10.625 1.70924 10.5592 1.55027 10.4419 1.43306C10.3247 1.31585 10.1658 1.25 10 1.25C9.83424 1.25 9.67527 1.31585 9.55806 1.43306C9.44085 1.55027 9.375 1.70924 9.375 1.875V8.49141L6.69219 5.80781C6.57491 5.69054 6.41585 5.62465 6.25 5.62465C6.08415 5.62465 5.92509 5.69054 5.80781 5.80781C5.69054 5.92509 5.62465 6.08415 5.62465 6.25C5.62465 6.41585 5.69054 6.57491 5.80781 6.69219L9.55781 10.4422ZM15.625 13.125C15.625 12.9396 15.57 12.7583 15.467 12.6042C15.364 12.45 15.2176 12.3298 15.0463 12.2589C14.875 12.1879 14.6865 12.1693 14.5046 12.2055C14.3227 12.2417 14.1557 12.331 14.0246 12.4621C13.8935 12.5932 13.8042 12.7602 13.768 12.9421C13.7318 13.124 13.7504 13.3125 13.8214 13.4838C13.8923 13.6551 14.0125 13.8015 14.1667 13.9045C14.3208 14.0075 14.5021 14.0625 14.6875 14.0625C14.9361 14.0625 15.1746 13.9637 15.3504 13.7879C15.5262 13.6121 15.625 13.3736 15.625 13.125Z" fill="#1560A0" />
+                          </svg>
+                          <span>דפי עבודה.doc</span>
+                          {worksheetCount > 1 && (
+                            <div className="file-counter">
+                              +{worksheetCount - 1}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      id="lesson-upload-input"
+                      type="file"
+                      multiple
+                      onChange={handleLessonUpload}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                      hidden
+                    />
+
+                    <input
+                      id="worksheet-upload-input"  
+                      type="file"
+                      multiple
+                      onChange={handleWorkSheetUpload}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                      hidden
+                    />
+                  </div>
+
+                </div>
+                <StatusCard
+                  title="סה״כ חניכים/ות"
+                  content={participants.length}
+                  icon={<svg width="24" height="16" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10.789 10.3073C11.7942 9.63809 12.5573 8.66317 12.9656 7.52671C13.3738 6.39024 13.4055 5.15256 13.056 3.99669C12.7064 2.84082 11.9941 1.82813 11.0245 1.10837C10.0549 0.388613 8.87937 0 7.6718 0C6.46423 0 5.28871 0.388613 4.31909 1.10837C3.34946 1.82813 2.6372 2.84082 2.28763 3.99669C1.93807 5.15256 1.96976 6.39024 2.37802 7.52671C2.78627 8.66317 3.54942 9.63809 4.55461 10.3073C2.73632 10.9774 1.18346 12.2176 0.127737 13.8426C0.0722517 13.9251 0.0337116 14.0177 0.0143569 14.1152C-0.00499789 14.2127 -0.00478119 14.3131 0.0149944 14.4105C0.0347699 14.5079 0.0737098 14.6004 0.129551 14.6826C0.185391 14.7649 0.257019 14.8352 0.340271 14.8895C0.423522 14.9438 0.516736 14.981 0.614495 14.9989C0.712253 15.0169 0.812606 15.0152 0.909721 14.9941C1.00684 14.9729 1.09877 14.9326 1.18019 14.8756C1.26161 14.8186 1.33088 14.746 1.38399 14.662C2.06498 13.6146 2.99682 12.7539 4.0949 12.1581C5.19297 11.5623 6.42249 11.2502 7.6718 11.2502C8.92111 11.2502 10.1506 11.5623 11.2487 12.1581C12.3468 12.7539 13.2786 13.6146 13.9596 14.662C14.0696 14.8255 14.2395 14.9391 14.4327 14.9783C14.6258 15.0175 14.8266 14.9791 14.9916 14.8715C15.1567 14.7638 15.2727 14.5955 15.3147 14.403C15.3566 14.2105 15.3211 14.0092 15.2159 13.8426C14.1601 12.2176 12.6073 10.9774 10.789 10.3073ZM3.5468 5.62728C3.5468 4.81143 3.78873 4.01391 4.24199 3.33556C4.69525 2.6572 5.33948 2.12849 6.09323 1.81628C6.84698 1.50407 7.67638 1.42238 8.47655 1.58154C9.27672 1.74071 10.0117 2.13357 10.5886 2.71047C11.1655 3.28736 11.5584 4.02236 11.7175 4.82253C11.8767 5.62271 11.795 6.45211 11.4828 7.20585C11.1706 7.9596 10.6419 8.60383 9.96353 9.05709C9.28517 9.51035 8.48765 9.75228 7.6718 9.75228C6.57816 9.75104 5.52967 9.31605 4.75635 8.54273C3.98304 7.76941 3.54804 6.72092 3.5468 5.62728ZM23.2474 14.8804C23.0808 14.989 22.8779 15.0271 22.6833 14.9861C22.4887 14.9451 22.3183 14.8285 22.2096 14.662C21.5294 13.614 20.5977 12.7529 19.4994 12.1573C18.4011 11.5617 17.1712 11.2506 15.9218 11.2523C15.7229 11.2523 15.5321 11.1733 15.3915 11.0326C15.2508 10.892 15.1718 10.7012 15.1718 10.5023C15.1718 10.3034 15.2508 10.1126 15.3915 9.97195C15.5321 9.8313 15.7229 9.75228 15.9218 9.75228C16.5293 9.75171 17.1291 9.61697 17.6785 9.3577C18.2278 9.09843 18.7132 8.72102 19.0998 8.25245C19.4864 7.78387 19.7647 7.23569 19.9149 6.64707C20.065 6.05846 20.0834 5.44394 19.9685 4.84742C19.8537 4.25091 19.6085 3.68712 19.2505 3.19634C18.8925 2.70556 18.4305 2.29991 17.8976 2.00838C17.3646 1.71684 16.7739 1.54661 16.1675 1.50984C15.5612 1.47308 14.9542 1.5707 14.3899 1.79572C14.2979 1.83549 14.1989 1.85642 14.0987 1.85727C13.9984 1.85811 13.8991 1.83886 13.8064 1.80065C13.7137 1.76244 13.6297 1.70605 13.5592 1.6348C13.4887 1.56355 13.4332 1.4789 13.396 1.38584C13.3587 1.29278 13.3405 1.1932 13.3425 1.09299C13.3444 0.992777 13.3663 0.893966 13.4071 0.802394C13.4478 0.710821 13.5065 0.628344 13.5797 0.559837C13.6529 0.491329 13.739 0.438181 13.833 0.403532C15.1244 -0.111482 16.5608 -0.130016 17.865 0.351507C19.1692 0.83303 20.2489 1.78049 20.8958 3.01111C21.5427 4.24173 21.7109 5.66831 21.368 7.01564C21.0251 8.36298 20.1954 9.53559 19.039 10.3073C20.8573 10.9774 22.4101 12.2176 23.4659 13.8426C23.5745 14.0092 23.6125 14.2121 23.5716 14.4067C23.5306 14.6014 23.414 14.7717 23.2474 14.8804Z" fill="white" />
+                  </svg>
+
+                  }
+                  style='{"background":" linear-gradient(265.59deg, #B9A976 36.05%, #DCDAC0 208.75%)","width": "25%"}'
+
+                  className="cardTotalNumberOfTrainees"
+                />
+
+                <StatusCard
+                  title="הגיעו"
+                  content={presentCount}
+                  icon={<svg width="20" height="15" viewBox="0 0 20 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.1738 1.92195L7.17383 13.922C7.06931 14.0268 6.94512 14.11 6.80837 14.1668C6.67163 14.2236 6.52502 14.2528 6.37695 14.2528C6.22889 14.2528 6.08228 14.2236 5.94553 14.1668C5.80878 14.11 5.68459 14.0268 5.58008 13.922L0.330076 8.67195C0.225429 8.56731 0.142419 8.44307 0.085784 8.30634C0.0291494 8.16961 1.55936e-09 8.02307 0 7.87508C-1.55936e-09 7.72708 0.0291494 7.58054 0.085784 7.44381C0.142419 7.30708 0.225429 7.18285 0.330076 7.0782C0.434724 6.97356 0.558958 6.89054 0.695686 6.83391C0.832414 6.77728 0.978958 6.74812 1.12695 6.74812C1.27494 6.74812 1.42149 6.77728 1.55822 6.83391C1.69495 6.89054 1.81918 6.97356 1.92383 7.0782L6.37789 11.5323L17.582 0.330076C17.7933 0.118732 18.0799 0 18.3788 0C18.6777 0 18.9644 0.118732 19.1757 0.330076C19.387 0.541421 19.5058 0.828065 19.5058 1.12695C19.5058 1.42584 19.387 1.71248 19.1757 1.92383L19.1738 1.92195Z" fill="white" />
+                  </svg>
+
+                  }
+                  style='{"background":"linear-gradient(260.32deg, #00466D 37.98%, #1082C2 121.93%)","width": "50%"}'
+
+                  className="cardPresent"
+
+                />
+
+                <StatusCard
+                  title="שיעור נוכחות"
+                  content={attendanceRate + "%"}
+                  icon={<svg width="23" height="17" viewBox="0 0 23 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.9951 11.7862C13.1708 11.054 14.076 9.9587 14.5738 8.66613C15.0716 7.37357 15.1349 5.95404 14.7541 4.6223C14.3733 3.29057 13.5691 2.11909 12.4632 1.2851C11.3573 0.451118 10.0099 0 8.62476 0C7.23965 0 5.89222 0.451118 4.78632 1.2851C3.68043 2.11909 2.87624 3.29057 2.49543 4.6223C2.11461 5.95404 2.17789 7.37357 2.67569 8.66613C3.17349 9.9587 4.07873 11.054 5.25444 11.7862C3.31851 12.42 1.57663 13.6041 0.176007 15.2709C0.0479568 15.4232 -0.0143506 15.6202 0.00279137 15.8184C0.0199334 16.0166 0.115121 16.1999 0.267413 16.328C0.419705 16.456 0.616628 16.5183 0.814859 16.5012C1.01309 16.484 1.19639 16.3889 1.32444 16.2366C3.20601 13.9903 5.79913 12.7538 8.62007 12.7538C11.441 12.7538 14.0341 13.9903 15.9204 16.2366C16.0484 16.3889 16.2317 16.484 16.43 16.5012C16.6282 16.5183 16.8251 16.456 16.9774 16.328C17.1297 16.1999 17.2249 16.0166 17.242 15.8184C17.2592 15.6202 17.1969 15.4232 17.0688 15.2709C15.6682 13.6041 13.9263 12.42 11.9951 11.7862ZM3.74507 6.37875C3.74507 5.41457 4.03098 4.47203 4.56665 3.67035C5.10233 2.86866 5.8637 2.24381 6.75449 1.87484C7.64528 1.50586 8.62548 1.40932 9.57113 1.59742C10.5168 1.78552 11.3854 2.24982 12.0672 2.9316C12.749 3.61338 13.2133 4.48203 13.4014 5.42768C13.5895 6.37334 13.493 7.35354 13.124 8.24433C12.755 9.13512 12.1302 9.89649 11.3285 10.4322C10.5268 10.9678 9.58425 11.2537 8.62007 11.2537C7.3276 11.2523 6.08848 10.7382 5.17457 9.82425C4.26065 8.91033 3.74656 7.67122 3.74507 6.37875ZM22.2757 9.53438L19.2757 12.5344C19.206 12.6041 19.1233 12.6594 19.0323 12.6972C18.9412 12.7349 18.8436 12.7543 18.7451 12.7543C18.6465 12.7543 18.5489 12.7349 18.4579 12.6972C18.3668 12.6594 18.2841 12.6041 18.2144 12.5344L16.7144 11.0344C16.5737 10.8936 16.4947 10.7028 16.4947 10.5037C16.4947 10.3047 16.5737 10.1139 16.7144 9.97312C16.8552 9.83239 17.046 9.75333 17.2451 9.75333C17.4441 9.75333 17.635 9.83239 17.7757 9.97312L18.7451 10.9434L21.2144 8.47312C21.3552 8.33239 21.546 8.25333 21.7451 8.25333C21.9441 8.25333 22.135 8.33239 22.2757 8.47313C22.4164 8.61386 22.4955 8.80473 22.4955 9.00375C22.4955 9.20277 22.4164 9.39365 22.2757 9.53438Z" fill="white" />
+                  </svg>
+
+                  }
+                  style='{"background":" linear-gradient(261.4deg, #006455 24.82%, #15AD96 101.57%)","width": "50%"}'
+
+                  className="cardAttendanceLevel"
+
+                />
+              </div>
+              {/* כרטיס קבצים מצורפים */}
+              <UnifiedDataTable
+                columns={columns}
+                title="משתתפים/ות"
+                search={search}
+                setSearch={setSearch}
+                searchPlaceholder="חיפוש חניך/ה..."
+                mode="advanced"
+                pageType="activityAttendance"
+                onStatusClick={handleStatusClick}
+                onNoteChange={handleNoteChange}
+                onCheckClick={handleCheckClick}
+                onSmileyClick={handleSmileyClick}
+                getButtonStyle={getButtonStyle}
+                getCheckButtonStyle={getCheckButtonStyle}
+                customData={participants}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Popup - rendered at the top level to work for both mobile and desktop */}
+        {openPopup && activityDataForPopup && (
+          <ActivityPopup
+            activityData={activityDataForPopup}
+            onClose={() => {
+              setOpenPopup(false);
+              setActivityDataForPopup(null);
+            }}
+          />
+        )}
+      </div >
+
+
+    );
+  };
+
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    const AppWithProvider = () => (
+      <ReactRedux.Provider store={store}>
+        <ActivityAttendancePage />
+      </ReactRedux.Provider>
+    );
+
+    if (ReactDOM.createRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(<AppWithProvider />);
+    } else {
+      ReactDOM.render(<AppWithProvider />, rootElement);
+    }
+  }
+
+</script>
+
+<div class="sectionBlockLayout">
+  <div class="container container-full">
+    <div>
+      <div id="root"></div>
+    </div>
+  </div>
+</div>

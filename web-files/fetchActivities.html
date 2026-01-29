@@ -1,0 +1,35 @@
+// {% assign projectid = request.params["projectid"] | default: "" %}
+
+{% fetchxml DataList %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" returntotalrecordcount="true" distinct="true">
+
+    <entity name="zooz_activity_wheel">
+        <attribute name="zooz_activity_wheelid" />
+        <attribute name="zooz_name" />
+        <attribute name="zooz_activity" />
+        <attribute name="zooz_youth_group" />
+
+    </entity>
+</fetch>
+{% endfetchxml %}
+
+{
+    "totalRecordCount": "{{ DataList.results.total_record_count }}",
+    "records": [
+        {% for result in DataList.results.entities %}
+        {
+            "activityId": "{{result.'zooz_activity_wheelid'}},
+            "name": "{{result.'zooz_name'}},
+            "details": "{{result.'activity.zooz_details'}},
+            "asPlan": "{{result.'attendance.zooz_as_plan'}},
+            "activityDefinitionId": "{{result.'_zooz_activity_value'}},
+            "activityDefinitionName": "{{result.'_zooz_activity_value@OData.Community.Display.V1.FormattedValue'}},
+            "startDate": "{{result.'attendance.zooz_date'}},
+            "formattedDate": "{{result.'attendance.zooz_date@OData.Community.Display.V1.FormattedValue'}},
+            "knId": "{{result.'kn.zooz_knid']}},
+            "groupId": "{{result."attendance.zooz_group"}},
+        }
+        {% unless forloop.last %}, {% endunless %}
+        {% endfor %}
+    ]
+}

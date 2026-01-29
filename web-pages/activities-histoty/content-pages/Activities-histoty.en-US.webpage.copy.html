@@ -1,0 +1,497 @@
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar/index.global.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo&display=swap" rel="stylesheet" />
+
+<script type="text/babel">
+  const ActivitiesHistory = () => {
+
+    const { useSelector, useDispatch } = window.ReactRedux;
+    const dispatch = useDispatch();
+
+    const activities = useSelector(state => state.activities?.data || []);
+    const [searchTerm, setSearchTerm] = React.useState("");
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+    const [openMenuId, setOpenMenuId] = React.useState(null);
+    const [activityTypes, setActivityTypes] = React.useState([]);
+    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+    const [selectedTagName, setSelectedTagName] = React.useState(null);
+
+    React.useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    React.useEffect(() => {
+      if (typeof fetchActivitiesData === 'function') {
+        dispatch(fetchActivitiesData());
+      }
+    }, [dispatch]);
+
+    // שליפת סוגי פעילויות (tags)
+    React.useEffect(() => {
+      console.log('בודק אם webapi זמין:', typeof webapi);
+      if (typeof webapi !== 'undefined' && typeof webapi.safeAjax === 'function') {
+        console.log('שולח בקשה לשליפת סוגי פעילויות...');
+        webapi.safeAjax({
+          type: "GET",
+          url: "/_api/zooz_activity_types?$select=zooz_activity_typeid,zooz_name",
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: function (data) {
+            console.log('תשובה מה-API:', data);
+            const types = data.value.map(item => ({
+              id: item.zooz_activity_typeid,
+              name: item.zooz_name
+            }));
+            setActivityTypes(types);
+            console.log('סוגי פעילויות נשמרו ב-state:', types);
+          },
+          error: function (xhr, textStatus, errorThrown) {
+            console.error('שגיאה בשליפת סוגי פעילויות:', xhr, textStatus, errorThrown);
+          }
+        });
+      } else {
+        console.warn('webapi לא זמין עדיין. מנסה שוב ב-500ms...');
+        setTimeout(() => {
+          if (typeof webapi !== 'undefined' && typeof webapi.safeAjax === 'function') {
+            console.log('ניסיון שני - שולח בקשה...');
+            webapi.safeAjax({
+              type: "GET",
+              url: "/_api/zooz_activity_types?$select=zooz_activity_typeid,zooz_name",
+              contentType: "application/json",
+              headers: {
+                "Prefer": "odata.include-annotations=*"
+              },
+              success: function (data) {
+                const types = data.value.map(item => ({
+                  id: item.zooz_activity_typeid,
+                  name: item.zooz_name
+                }));
+                setActivityTypes(types);
+                console.log('סוגי פעילויות (ניסיון 2):', types);
+              },
+              error: function (xhr, textStatus, errorThrown) {
+                console.error('שגיאה בניסיון שני:', xhr);
+              }
+            });
+          }
+        }, 500);
+      }
+    }, []);
+
+    // סגירת תפריט בלחיצה מחוץ לו
+    React.useEffect(() => {
+      const handleClickOutside = (e) => {
+        if (openMenuId !== null && !e.target.closest('.more-menu-wrap')) {
+          setOpenMenuId(null);
+        }
+        if (isDropdownOpen && !e.target.closest('.all-activities-btn') && !e.target.closest('.tag-dropdown')) {
+          setIsDropdownOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openMenuId, isDropdownOpen]);
+
+    const filterPastActivities = (activities) => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return activities.filter(activity => {
+        const activityDate = new Date(activity.startDate);
+        return activityDate < today;
+      });
+    };
+
+    const sortActivitiesByDateDesc = (activities) => {
+      return activities.sort((a, b) => {
+        return new Date(b.startDate) - new Date(a.startDate);
+      });
+    };
+
+    const getHebrewMonthYear = (year, month) => {
+      const hebrewMonths = {
+        1: 'ינואר', 2: 'פברואר', 3: 'מרץ', 4: 'אפריל',
+        5: 'מאי', 6: 'יוני', 7: 'יולי', 8: 'אוגוסט',
+        9: 'ספטמבר', 10: 'אוקטובר', 11: 'נובמבר', 12: 'דצמבר'
+      };
+      return `${hebrewMonths[month]} `;
+    };
+
+    const getHebrewDayName = (dateString) => {
+      const date = new Date(dateString);
+      const hebrewDays = {
+        0: 'ראשון', 1: 'שני', 2: 'שלישי', 3: 'רביעי',
+        4: 'חמישי', 5: 'שישי', 6: 'שבת'
+      };
+      return hebrewDays[date.getDay()];
+    };
+
+    const filteredAndSortedActivities = React.useMemo(() => {
+      // 1. קודם כל סנן רק פעילויות שעברו
+      const pastActivities = filterPastActivities(activities);
+      
+      // 2. סינון לפי tag נבחר
+      let filtered = pastActivities;
+      if (selectedTagName) {
+        console.log('Selected Tag Name:', selectedTagName);
+        console.log('Past activities tags:', pastActivities.map(a => ({ title: a.title, tagName: a.tag?.label })));
+        filtered = filtered.filter(activity => {
+          const matches = activity.tag?.label === selectedTagName;
+          console.log(`Activity "${activity.title}" - tag.label: ${activity.tag?.label}, matches: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered activities:', filtered.length);
+      }
+      
+      // 3. סינון לפי חיפוש
+      filtered = filtered.filter(activity =>
+        activity.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
+      return sortActivitiesByDateDesc(filtered);
+    }, [activities, searchTerm, selectedTagName]);
+
+    const groupedActivities = React.useMemo(() => {
+      return filteredAndSortedActivities.reduce((groups, activity) => {
+        const date = new Date(activity.startDate);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        if (!groups[monthKey]) {
+          groups[monthKey] = [];
+        }
+        groups[monthKey].push(activity);
+        return groups;
+      }, {});
+    }, [filteredAndSortedActivities]);
+
+    const handleDownloadFiles = (activity) => {
+      console.log('Downloading files for:', activity);
+    };
+
+    const handlePrint = (activity) => {
+      console.log('Printing:', activity);
+      window.print();
+    };
+
+    const handleDuplicate = (activity) => {
+      console.log('Duplicating:', activity);
+    };
+    // הוסף את הפונקציה הזו ליד handlePrint:
+    const handleShare = (activity) => {
+      console.log('Sharing:', activity);
+      if (navigator.share) {
+        navigator.share({
+          title: activity.title,
+          text: `פעילות: ${activity.title}`,
+          url: window.location.href
+        }).catch(err => console.log('Error sharing:', err));
+      } else {
+        // fallback - העתקה ללוח
+        navigator.clipboard.writeText(window.location.href);
+        alert('הקישור הועתק ללוח');
+      }
+    };
+
+    const handleTagSelect = (tagName) => {
+      setSelectedTagName(tagName);
+      setIsDropdownOpen(false);
+    };
+
+    const getSelectedTagName = () => {
+      return selectedTagName || 'כל הפעולות';
+    };
+
+    return (
+      <div className="page-layout">
+        {!isMobile ? <SidebarMenu /> : <ChatBtnInMobile/>}
+        <div className={`activities-main-container ${!isMobile ? "main-content" : ""}`}>
+        <div classname="contentDiv">
+          <div className="page-header">
+            <h1 className="page-title">היסטוריית פעילויות</h1>
+            <p className="page-subtitle">מרחב צפון • הגלבוע • עמקים • ק״ן אביטל</p>
+          </div>
+
+          <div className="sidebar-section">
+            {isMobile ? (
+              <>
+                <div className="section-top-row-mobile">
+                  <h3 className="section-title">פעילויות שהסתיימו</h3>
+                  <div className="tag-dropdown-wrapper">
+                    <button 
+                      className="all-activities-btn"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    >
+                      <span>{getSelectedTagName()}</span>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16.9132 8.16305L10.6632 14.4131C10.5762 14.5005 10.4727 14.5698 10.3587 14.6171C10.2447 14.6644 10.1226 14.6888 9.99918 14.6888C9.8758 14.6888 9.75362 14.6644 9.63967 14.6171C9.52571 14.5698 9.42222 14.5005 9.33512 14.4131L3.08512 8.16305C2.909 7.98693 2.81006 7.74806 2.81006 7.49899C2.81006 7.24992 2.909 7.01105 3.08512 6.83493C3.26124 6.65881 3.50011 6.55986 3.74918 6.55986C3.99826 6.55986 4.23713 6.65881 4.41325 6.83493L9.99997 12.4216L15.5867 6.83415C15.7628 6.65803 16.0017 6.55908 16.2507 6.55908C16.4998 6.55908 16.7387 6.65803 16.9148 6.83415C17.0909 7.01027 17.1899 7.24914 17.1899 7.49821C17.1899 7.74728 17.0909 7.98615 16.9148 8.16227L16.9132 8.16305Z" fill="#00466D" />
+                      </svg>
+                    </button>
+                    {isDropdownOpen && (
+                      <div className="tag-dropdown">
+                        <div 
+                          className="tag-dropdown-item"
+                          onClick={() => handleTagSelect(null)}
+                        >
+                          כל הפעולות
+                        </div>
+                        {activityTypes.map(type => (
+                          <div 
+                            key={type.id}
+                            className="tag-dropdown-item"
+                            onClick={() => handleTagSelect(type.name)}
+                          >
+                            {type.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="search-row-mobile">
+                  <div className="search-input-container">
+                    <input
+                      type="text"
+                      placeholder="חיפוש פעילויות"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-input"
+                    />
+                    <div className="search-icon">
+                      <i className="fa-solid fa-search search-icon"></i>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="section-top-row">
+                <h3 className="section-title">פעילויות שהסתיימו</h3>
+                <div className="search-and-filter">
+                  <div className="search-input-container">
+                    <input
+                      type="text"
+                      placeholder="חיפוש פעילויות"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="search-input"
+                    />
+                    <div className="search-icon">
+                      <i className="fa-solid fa-search search-icon"></i>
+                    </div>
+                  </div>
+                  <div className="tag-dropdown-wrapper">
+                    <button 
+                      className="all-activities-btn"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    >
+                      <span>{getSelectedTagName()}</span>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16.9132 8.16305L10.6632 14.4131C10.5762 14.5005 10.4727 14.5698 10.3587 14.6171C10.2447 14.6644 10.1226 14.6888 9.99918 14.6888C9.8758 14.6888 9.75362 14.6644 9.63967 14.6171C9.52571 14.5698 9.42222 14.5005 9.33512 14.4131L3.08512 8.16305C2.909 7.98693 2.81006 7.74806 2.81006 7.49899C2.81006 7.24992 2.909 7.01105 3.08512 6.83493C3.26124 6.65881 3.50011 6.55986 3.74918 6.55986C3.99826 6.55986 4.23713 6.65881 4.41325 6.83493L9.99997 12.4216L15.5867 6.83415C15.7628 6.65803 16.0017 6.55908 16.2507 6.55908C16.4998 6.55908 16.7387 6.65803 16.9148 6.83415C17.0909 7.01027 17.1899 7.24914 17.1899 7.49821C17.1899 7.74728 17.0909 7.98615 16.9148 8.16227L16.9132 8.16305Z" fill="#00466D" />
+                      </svg>
+                    </button>
+                    {isDropdownOpen && (
+                      <div className="tag-dropdown">
+                        <div 
+                          className="tag-dropdown-item"
+                          onClick={() => handleTagSelect(null)}
+                        >
+                          כל הפעולות
+                        </div>
+                        {activityTypes.map(type => (
+                          <div 
+                            key={type.id}
+                            className="tag-dropdown-item"
+                            onClick={() => handleTagSelect(type.name)}
+                          >
+                            {type.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="activities-list">
+              {Object.keys(groupedActivities)
+                .sort((a, b) => b.localeCompare(a))
+                .map((monthKey) => {
+                  const [year, month] = monthKey.split("-");
+
+                  return (
+                    <div key={monthKey} className="month-section">
+                      <h4 className="month-title">
+                        {getHebrewMonthYear(parseInt(year), parseInt(month))}
+                      </h4>
+
+                      {groupedActivities[monthKey]
+                        .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+                        .map((activity) => (
+                          <div 
+                            key={activity.id} 
+                            className="activity-row"
+                            onClick={() => window.location.href = `/activitieshistory-detail?id=${activity.id}`}
+                          >
+                            <div className="activity-info">
+                              <div className="activity-name">
+                                {activity.title}
+                                <Tag tag={activity.tag} />
+                              </div>
+                              <div className="activity-time-wrapper">
+                                <span className="time-label">שעה</span>
+                                <span className="activity-time">
+                                  {activity.startTime} - {activity.endTime}
+                                </span>
+                                <span className="activity-location-mobile">• ק"ן אביטל</span>
+                              </div>
+                            </div>
+
+                            {!isMobile && (
+                              <div className="activity-actions">
+                                <button className="action-icon-btn download-btn" onClick={(e) => { e.stopPropagation(); handleDownloadFiles(activity); }} title="הורדת קבצי הדרכה">
+                                  <span className="btn-text">הורדת קבצי הדרכה</span>
+                                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16.875 9.5625V14.0625C16.875 14.3609 16.7565 14.647 16.5455 14.858C16.3345 15.069 16.0484 15.1875 15.75 15.1875H2.25C1.95163 15.1875 1.66548 15.069 1.4545 14.858C1.24353 14.647 1.125 14.3609 1.125 14.0625V9.5625C1.125 9.26413 1.24353 8.97798 1.4545 8.767C1.66548 8.55603 1.95163 8.4375 2.25 8.4375H5.0625C5.21168 8.4375 5.35476 8.49676 5.46025 8.60225C5.56574 8.70774 5.625 8.85082 5.625 9C5.625 9.14918 5.56574 9.29226 5.46025 9.39775C5.35476 9.50324 5.21168 9.5625 5.0625 9.5625H2.25V14.0625H15.75V9.5625H12.9375C12.7883 9.5625 12.6452 9.50324 12.5398 9.39775C12.4343 9.29226 12.375 9.14918 12.375 9C12.375 8.85082 12.4343 8.70774 12.5398 8.60225C12.6452 8.49676 12.7883 8.4375 12.9375 8.4375H15.75C16.0484 8.4375 16.3345 8.55603 16.5455 8.767C16.7565 8.97798 16.875 9.26413 16.875 9.5625ZM8.60203 9.39797C8.65427 9.45027 8.71631 9.49176 8.7846 9.52007C8.85288 9.54837 8.92608 9.56294 9 9.56294C9.07392 9.56294 9.14712 9.54837 9.2154 9.52007C9.28369 9.49176 9.34573 9.45027 9.39797 9.39797L12.773 6.02297C12.8785 5.91742 12.9378 5.77427 12.9378 5.625C12.9378 5.47573 12.8785 5.33258 12.773 5.22703C12.6674 5.12148 12.5243 5.06219 12.375 5.06219C12.2257 5.06219 12.0826 5.12148 11.977 5.22703L9.5625 7.64227V1.6875C9.5625 1.53832 9.50324 1.39524 9.39775 1.28975C9.29226 1.18426 9.14918 1.125 9 1.125C8.85082 1.125 8.70774 1.18426 8.60225 1.28975C8.49676 1.39524 8.4375 1.53832 8.4375 1.6875V7.64227L6.02297 5.22703C5.91742 5.12148 5.77427 5.06219 5.625 5.06219C5.47573 5.06219 5.33258 5.12148 5.22703 5.22703C5.12148 5.33258 5.06219 5.47573 5.06219 5.625C5.06219 5.77427 5.12148 5.91742 5.22703 6.02297L8.60203 9.39797ZM14.0625 11.8125C14.0625 11.6456 14.013 11.4825 13.9203 11.3437C13.8276 11.205 13.6958 11.0968 13.5416 11.033C13.3875 10.9691 13.2178 10.9524 13.0541 10.985C12.8905 11.0175 12.7401 11.0979 12.6221 11.2159C12.5041 11.3339 12.4238 11.4842 12.3912 11.6479C12.3587 11.8116 12.3754 11.9812 12.4392 12.1354C12.5031 12.2896 12.6112 12.4213 12.75 12.5141C12.8887 12.6068 13.0519 12.6562 13.2188 12.6562C13.4425 12.6562 13.6571 12.5674 13.8154 12.4091C13.9736 12.2509 14.0625 12.0363 14.0625 11.8125Z" fill="#333333" />
+                                  </svg>
+                                </button>
+
+                             {/*}   <button className="action-icon-btn print-btn" onClick={(e) => { e.stopPropagation(); handlePrint(activity); }} title="הדפסה">
+                                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15.094 5.0625H14.0625V2.8125C14.0625 2.66332 14.0032 2.52024 13.8977 2.41475C13.7923 2.30926 13.6492 2.25 13.5 2.25H4.5C4.35082 2.25 4.20774 2.30926 4.10225 2.41475C3.99676 2.52024 3.9375 2.66332 3.9375 2.8125V5.0625H2.90602C1.92375 5.0625 1.125 5.81977 1.125 6.75V12.375C1.125 12.5242 1.18426 12.6673 1.28975 12.7727C1.39524 12.8782 1.53832 12.9375 1.6875 12.9375H3.9375V15.1875C3.9375 15.3367 3.99676 15.4798 4.10225 15.5852C4.20774 15.6907 4.35082 15.75 4.5 15.75H13.5C13.6492 15.75 13.7923 15.6907 13.8977 15.5852C14.0032 15.4798 14.0625 15.3367 14.0625 15.1875V12.9375H16.3125C16.4617 12.9375 16.6048 12.8782 16.7102 12.7727C16.8157 12.6673 16.875 12.5242 16.875 12.375V6.75C16.875 5.81977 16.0763 5.0625 15.094 5.0625ZM5.0625 3.375H12.9375V5.0625H5.0625V3.375ZM12.9375 14.625H5.0625V11.25H12.9375V14.625ZM15.75 11.8125H14.0625V10.6875C14.0625 10.5383 14.0032 10.3952 13.8977 10.2898C13.7923 10.1843 13.6492 10.125 13.5 10.125H4.5C4.35082 10.125 4.20774 10.1843 4.10225 10.2898C3.99676 10.3952 3.9375 10.5383 3.9375 10.6875V11.8125H2.25V6.75C2.25 6.43992 2.54461 6.1875 2.90602 6.1875H15.094C15.4554 6.1875 15.75 6.43992 15.75 6.75V11.8125ZM14.0625 8.15625C14.0625 8.32313 14.013 8.48626 13.9203 8.62501C13.8276 8.76377 13.6958 8.87191 13.5416 8.93577C13.3875 8.99963 13.2178 9.01634 13.0541 8.98379C12.8905 8.95123 12.7401 8.87087 12.6221 8.75287C12.5041 8.63487 12.4238 8.48453 12.3912 8.32086C12.3587 8.15719 12.3754 7.98754 12.4392 7.83336C12.5031 7.67919 12.6112 7.54741 12.75 7.4547C12.8887 7.36198 13.0519 7.3125 13.2188 7.3125C13.4425 7.3125 13.6571 7.40139 13.8154 7.55963C13.9736 7.71786 14.0625 7.93247 14.0625 8.15625Z" fill="#333333" />
+                                  </svg>
+                                </button>
+
+                                <button className="action-icon-btn copy-btn" onClick={(e) => { e.stopPropagation(); handleDuplicate(activity); }} title="שכפול">
+                                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15.1875 2.25H6.1875C6.03832 2.25 5.89524 2.30926 5.78975 2.41475C5.68426 2.52024 5.625 2.66332 5.625 2.8125V5.625H2.8125C2.66332 5.625 2.52024 5.68426 2.41475 5.78975C2.30926 5.89524 2.25 6.03832 2.25 6.1875V15.1875C2.25 15.3367 2.30926 15.4798 2.41475 15.5852C2.52024 15.6907 2.66332 15.75 2.8125 15.75H11.8125C11.9617 15.75 12.1048 15.6907 12.2102 15.5852C12.3157 15.4798 12.375 15.3367 12.375 15.1875V12.375H15.1875C15.3367 12.375 15.4798 12.3157 15.5852 12.2102C15.6907 12.1048 15.75 11.9617 15.75 11.8125V2.8125C15.75 2.66332 15.6907 2.52024 15.5852 2.41475C15.4798 2.30926 15.3367 2.25 15.1875 2.25ZM11.25 14.625H3.375V6.75H11.25V14.625ZM14.625 11.25H12.375V6.1875C12.375 6.03832 12.3157 5.89524 12.2102 5.78975C12.1048 5.68426 11.9617 5.625 11.8125 5.625H6.75V3.375H14.625V11.25Z" fill="#333333" />
+                                  </svg>
+                                </button>*/}
+                              </div>
+                            )}
+
+                            {isMobile && (
+                              <div className="more-menu-wrap">
+                                <button
+                                  className="more-options-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(openMenuId === activity.id ? null : activity.id);
+                                  }}
+                                  aria-haspopup="menu"
+                                  aria-expanded={openMenuId === activity.id}
+                                >
+                                  <svg width="3" height="15" viewBox="0 0 3 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M2.25 7.5C2.25 7.7225 2.18402 7.94001 2.0604 8.12502C1.93679 8.31002 1.76109 8.45422 1.55552 8.53936C1.34995 8.62451 1.12375 8.64679 0.905524 8.60338C0.687295 8.55998 0.486839 8.45283 0.329505 8.2955C0.172171 8.13816 0.0650254 7.93771 0.0216171 7.71948C-0.0217913 7.50125 0.000487447 7.27505 0.085636 7.06948C0.170785 6.86391 0.314979 6.68821 0.499984 6.5646C0.68499 6.44098 0.902497 6.375 1.125 6.375C1.42337 6.375 1.70952 6.49353 1.92049 6.70451C2.13147 6.91548 2.25 7.20163 2.25 7.5ZM1.125 2.25C1.3475 2.25 1.56501 2.18402 1.75002 2.0604C1.93502 1.93679 2.07922 1.76109 2.16436 1.55552C2.24951 1.34995 2.27179 1.12375 2.22838 0.905524C2.18498 0.687295 2.07783 0.486839 1.92049 0.329505C1.76316 0.172171 1.56271 0.0650254 1.34448 0.0216171C1.12625 -0.0217913 0.900049 0.000487447 0.694482 0.085636C0.488915 0.170785 0.313214 0.314979 0.189597 0.499984C0.0659804 0.684989 6.06877e-07 0.902497 6.06877e-07 1.125C6.06877e-07 1.42337 0.118527 1.70952 0.329505 1.9205C0.540484 2.13147 0.826632 2.25 1.125 2.25ZM1.125 12.75C0.902497 12.75 0.68499 12.816 0.499984 12.9396C0.314979 13.0632 0.170785 13.2389 0.085636 13.4445C0.000487447 13.65 -0.0217913 13.8762 0.0216171 14.0945C0.0650254 14.3127 0.172171 14.5132 0.329505 14.6705C0.486839 14.8278 0.687295 14.935 0.905524 14.9784C1.12375 15.0218 1.34995 14.9995 1.55552 14.9144C1.76109 14.8292 1.93679 14.685 2.0604 14.5C2.18402 14.315 2.25 14.0975 2.25 13.875C2.25 13.5766 2.13147 13.2905 1.92049 13.0795C1.70952 12.8685 1.42337 12.75 1.125 12.75Z" fill="#333333" />
+                                  </svg>
+                                </button>
+
+                                {openMenuId === activity.id && (
+                                  <div className="mobile-actions-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleDownloadFiles(activity);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="menu-item"
+                                    >
+                                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M16.875 9.5625V14.0625C16.875 14.3609 16.7565 14.647 16.5455 14.858C16.3345 15.069 16.0484 15.1875 15.75 15.1875H2.25C1.95163 15.1875 1.66548 15.069 1.4545 14.858C1.24353 14.647 1.125 14.3609 1.125 14.0625V9.5625C1.125 9.26413 1.24353 8.97798 1.4545 8.767C1.66548 8.55603 1.95163 8.4375 2.25 8.4375H5.0625C5.21168 8.4375 5.35476 8.49676 5.46025 8.60225C5.56574 8.70774 5.625 8.85082 5.625 9C5.625 9.14918 5.56574 9.29226 5.46025 9.39775C5.35476 9.50324 5.21168 9.5625 5.0625 9.5625H2.25V14.0625H15.75V9.5625H12.9375C12.7883 9.5625 12.6452 9.50324 12.5398 9.39775C12.4343 9.29226 12.375 9.14918 12.375 9C12.375 8.85082 12.4343 8.70774 12.5398 8.60225C12.6452 8.49676 12.7883 8.4375 12.9375 8.4375H15.75C16.0484 8.4375 16.3345 8.55603 16.5455 8.767C16.7565 8.97798 16.875 9.26413 16.875 9.5625ZM8.60203 9.39797C8.65427 9.45027 8.71631 9.49176 8.7846 9.52007C8.85288 9.54837 8.92608 9.56294 9 9.56294C9.07392 9.56294 9.14712 9.54837 9.2154 9.52007C9.28369 9.49176 9.34573 9.45027 9.39797 9.39797L12.773 6.02297C12.8785 5.91742 12.9378 5.77427 12.9378 5.625C12.9378 5.47573 12.8785 5.33258 12.773 5.22703C12.6674 5.12148 12.5243 5.06219 12.375 5.06219C12.2257 5.06219 12.0826 5.12148 11.977 5.22703L9.5625 7.64227V1.6875C9.5625 1.53832 9.50324 1.39524 9.39775 1.28975C9.29226 1.18426 9.14918 1.125 9 1.125C8.85082 1.125 8.70774 1.18426 8.60225 1.28975C8.49676 1.39524 8.4375 1.53832 8.4375 1.6875V7.64227L6.02297 5.22703C5.91742 5.12148 5.77427 5.06219 5.625 5.06219C5.47573 5.06219 5.33258 5.12148 5.22703 5.22703C5.12148 5.33258 5.06219 5.47573 5.06219 5.625C5.06219 5.77427 5.12148 5.91742 5.22703 6.02297L8.60203 9.39797ZM14.0625 11.8125C14.0625 11.6456 14.013 11.4825 13.9203 11.3437C13.8276 11.205 13.6958 11.0968 13.5416 11.033C13.3875 10.9691 13.2178 10.9524 13.0541 10.985C12.8905 11.0175 12.7401 11.0979 12.6221 11.2159C12.5041 11.3339 12.4238 11.4842 12.3912 11.6479C12.3587 11.8116 12.3754 11.9812 12.4392 12.1354C12.5031 12.2896 12.6112 12.4213 12.75 12.5141C12.8887 12.6068 13.0519 12.6562 13.2188 12.6562C13.4425 12.6562 13.6571 12.5674 13.8154 12.4091C13.9736 12.2509 14.0625 12.0363 14.0625 11.8125Z" fill="#333333" />
+                                      </svg>
+                                      הורדת קבצי הדרכה
+                                    </button>
+
+
+
+                                    <button
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleDuplicate(activity);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="menu-item"
+                                    >
+                                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M15.1875 2.25H6.1875C6.03832 2.25 5.89524 2.30926 5.78975 2.41475C5.68426 2.52024 5.625 2.66332 5.625 2.8125V5.625H2.8125C2.66332 5.625 2.52024 5.68426 2.41475 5.78975C2.30926 5.89524 2.25 6.03832 2.25 6.1875V15.1875C2.25 15.3367 2.30926 15.4798 2.41475 15.5852C2.52024 15.6907 2.66332 15.75 2.8125 15.75H11.8125C11.9617 15.75 12.1048 15.6907 12.2102 15.5852C12.3157 15.4798 12.375 15.3367 12.375 15.1875V12.375H15.1875C15.3367 12.375 15.4798 12.3157 15.5852 12.2102C15.6907 12.1048 15.75 11.9617 15.75 11.8125V2.8125C15.75 2.66332 15.6907 2.52024 15.5852 2.41475C15.4798 2.30926 15.3367 2.25 15.1875 2.25ZM11.25 14.625H3.375V6.75H11.25V14.625ZM14.625 11.25H12.375V6.1875C12.375 6.03832 12.3157 5.89524 12.2102 5.78975C12.1048 5.68426 11.9617 5.625 11.8125 5.625H6.75V3.375H14.625V11.25Z" fill="#333333" />
+                                      </svg>
+                                      שכפול
+                                    </button>
+                                    <button
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleShare(activity);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="menu-item"
+                                    >
+                                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M13.5 11.8125C12.9094 11.8125 12.375 12.0281 11.9625 12.3844L6.86625 9.43125C6.90375 9.29063 6.9375 9.14813 6.9375 9C6.9375 8.85188 6.90375 8.70938 6.86625 8.56875L11.9625 5.61562C12.375 5.97188 12.9094 6.1875 13.5 6.1875C14.7426 6.1875 15.75 5.18016 15.75 3.9375C15.75 2.69484 14.7426 1.6875 13.5 1.6875C12.2574 1.6875 11.25 2.69484 11.25 3.9375C11.25 4.08562 11.2838 4.22812 11.3213 4.36875L6.225 7.32188C5.8125 6.96562 5.27813 6.75 4.6875 6.75C3.44484 6.75 2.4375 7.75734 2.4375 9C2.4375 10.2427 3.44484 11.25 4.6875 11.25C5.27813 11.25 5.8125 11.0344 6.225 10.6781L11.3213 13.6312C11.2838 13.7719 11.25 13.9144 11.25 14.0625C11.25 15.3052 12.2574 16.3125 13.5 16.3125C14.7426 16.3125 15.75 15.3052 15.75 14.0625C15.75 12.8198 14.7426 11.8125 13.5 11.8125ZM13.5 2.8125C14.1225 2.8125 14.625 3.315 14.625 3.9375C14.625 4.56 14.1225 5.0625 13.5 5.0625C12.8775 5.0625 12.375 4.56 12.375 3.9375C12.375 3.315 12.8775 2.8125 13.5 2.8125ZM4.6875 10.125C4.065 10.125 3.5625 9.6225 3.5625 9C3.5625 8.3775 4.065 7.875 4.6875 7.875C5.31 7.875 5.8125 8.3775 5.8125 9C5.8125 9.6225 5.31 10.125 4.6875 10.125ZM13.5 15.1875C12.8775 15.1875 12.375 14.685 12.375 14.0625C12.375 13.44 12.8775 12.9375 13.5 12.9375C14.1225 12.9375 14.625 13.44 14.625 14.0625C14.625 14.685 14.1225 15.1875 13.5 15.1875Z" fill="#333333" />
+                                      </svg>
+                                      שיתוף
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="activity-date-badge">
+                              <div className="date-display">
+                                <div className="day-name">
+                                  {getHebrewDayName(activity.startDate)}
+                                </div>
+                                <div className="date-number">
+                                  {new Date(activity.startDate).getDate()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  );
+                })}
+
+              {Object.keys(groupedActivities).length === 0 && (
+                <div className="no-activities">
+                  <p>אין פעילויות בהיסטוריה</p>
+                  {searchTerm && <p>נסה לשנות את החיפוש</p>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    );
+  };
+
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    const AppWithProvider = () => (
+      <ReactRedux.Provider store={store}>
+        <ActivitiesHistory />
+      </ReactRedux.Provider>
+    );
+
+    if (ReactDOM.createRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(<AppWithProvider />);
+    } else {
+      ReactDOM.render(<AppWithProvider />, rootElement);
+    }
+  }
+</script>
+
+
+
+<div class="sectionBlockLayout">
+  <div class="container container-full">
+    <div>
+      <div id="root"></div>
+    </div>
+  </div>
+</div>

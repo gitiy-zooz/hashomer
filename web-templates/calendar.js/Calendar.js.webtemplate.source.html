@@ -1,0 +1,190 @@
+<script id="Calendar.js" type="text/babel">
+  const { useEffect, useRef } = React;
+  const { useSelector, useDispatch } = window.ReactRedux;
+
+  // ===============================
+  // פונקציות עזר
+  // ===============================
+  const formatHebrewDate = (dateString) => {
+    const date = new Date(dateString);
+    const hebrewMonths = {
+      0: 'ינו׳', 1: 'פבר׳', 2: 'מרץ', 3: 'אפר׳',
+      4: 'מאי', 5: 'יונ׳', 6: 'יול׳', 7: 'אוג׳',
+      8: 'ספט׳', 9: 'אוק׳', 10: 'נוב׳', 11: 'דצמ׳'
+    };
+    return date.getDate() + ' ' + hebrewMonths[date.getMonth()];
+  };
+
+  const isToday = (dateString) => {
+    const activityDate = new Date(dateString);
+    const today = new Date();
+    return activityDate.getDate() === today.getDate() &&
+      activityDate.getMonth() === today.getMonth() &&
+      activityDate.getFullYear() === today.getFullYear();
+  };
+
+  // ===============================
+  // המרת פעילויות לאירועים של FullCalendar
+  // ===============================
+  // הוספת גוון כהה יותר - אותה פונקציה כמו בתגיות
+  const darkenColor = (hex, amount = 0.2) => {
+    if (!hex) return '#D9C090';
+
+    hex = hex.replace('#', '');
+
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    // הכהה את הצבע
+    r = Math.max(0, Math.floor(r * (1 - amount)));
+    g = Math.max(0, Math.floor(g * (1 - amount)));
+    b = Math.max(0, Math.floor(b * (1 - amount)));
+
+    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+  };
+
+  const convertActivitiesToEvents = (activities) => {
+    if (!Array.isArray(activities)) return [];
+
+    return activities.map(activity => {
+      let eventClass = 'calendar-event-other';
+      if (activity.eventType === 'weekly') eventClass = 'calendar-event-weekly';
+      else if (activity.eventType === 'special') eventClass = 'calendar-event-special';
+      else if (activity.eventType === 'training') eventClass = 'calendar-event-training';
+
+      const start = activity.startDate || activity.date;
+      const end = activity.endDate
+        ? (() => {
+            const startDate = new Date(activity.startDate || activity.date);
+            const endDate = new Date(activity.endDate);
+            // Include the last day
+            if (endDate.getTime() > startDate.getTime()) {
+              const nextDay = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
+              return nextDay.toISOString().split("T")[0];
+            }
+            return endDate.toISOString().split("T")[0];
+          })()
+        : activity.date;
+
+      // שימוש באותה הכההה כמו בטקסט של התגית (30%)
+      const eventBackgroundColor = activity.tag?.color ? darkenColor(activity.tag.color, 0.3) : '#6B893B';
+      
+      return {
+        id: String(activity.id),
+        title: activity.title || 'פעילות ללא שם',
+        start: start,//activity.startDate || activity.date,
+        end: end, //activity.endDate+1 || activity.date,
+        backgroundColor: eventBackgroundColor, // צבע כהה 30% - כמו טקסט התגית
+        borderColor: eventBackgroundColor,
+        textColor: '#FFFFFF', // White text for contrast
+        extendedProps: {
+          branch: activity.branchName || 'ללא סניף',
+          eventType: activity.eventType || 'other',
+          tag: activity.tag // Pass tag data to event
+        }
+      };
+    });
+  };
+
+  // ===============================
+  // קומפוננטת ActivityCalendar
+  // ===============================
+  const ActivityCalendar = () => {
+    const activities = useSelector(state => state?.activities?.data || []);
+    const dispatch = useDispatch();
+    const calendarRef = useRef(null);
+    const calendarInstanceRef = useRef(null);
+
+    useEffect(() => {
+      if (typeof fetchActivitiesData === 'function') {
+        dispatch(fetchActivitiesData());
+      }
+    }, [dispatch]);
+
+    const calendarEvents = convertActivitiesToEvents(activities);
+    const isLoading = activities.length === 0;
+
+    useEffect(() => {
+      if (!isLoading && calendarRef.current && window.FullCalendar) {
+        if (calendarInstanceRef.current) {
+          calendarInstanceRef.current.destroy();
+          calendarInstanceRef.current = null;
+        }
+
+        const calendar = new FullCalendar.Calendar(calendarRef.current, {
+          initialView: 'dayGridMonth',
+          locale: 'he',
+          direction: 'rtl',
+          firstDay: 0,
+          headerToolbar: { left: 'prev,next', center: '', right: 'title' },
+          buttonText: { today: 'היום', month: 'חודש', week: 'שבוע', day: 'יום' },
+          dayHeaderContent: (arg) => arg.text.replace("יום ", ""),
+          dayHeaderFormat: { weekday: 'long' },
+          events: calendarEvents,
+          eventDisplay: 'block',
+          // dayMaxEvents: 2,
+          dayMaxEvents: false,
+          height: 'auto',
+          aspectRatio: 1.35,
+          titleFormat: { year: 'numeric', month: 'long' },
+          // Removed eventContent - let backgroundColor/textColor handle colors
+          eventClick: function(info) {
+            const event = info.event;
+            const activityId = event.id;
+            
+            // Check if activity is in the past or future
+            const activityDate = new Date(event.start);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            activityDate.setHours(0, 0, 0, 0);
+            
+            // Navigate based on date
+            if (activityDate < today) {
+              // Past activity - go to history detail page
+              window.location.href = `/activitieshistory-detail?id=${activityId}`;
+            } else {
+              // Future or today's activity - go to activity detail page
+              window.location.href = `/activity-detail?id=${activityId}`;
+            }
+          }
+        });
+
+        calendarInstanceRef.current = calendar;
+        calendar.render();
+      }
+    }, [isLoading, calendarEvents]);
+
+    useEffect(() => {
+      return () => {
+        if (calendarInstanceRef.current) {
+          calendarInstanceRef.current.destroy();
+          calendarInstanceRef.current = null;
+        }
+      };
+    }, []);
+
+    if (isLoading) return <div>טוען לוח שנה...</div>;
+    if (!window.FullCalendar) return <div>שגיאה: לא ניתן לטעון את FullCalendar</div>;
+
+    return (
+      <div className="fullcalendar-wrapper">
+        <div ref={calendarRef} className="fullcalendar-container"></div>
+        <div className="calendar-legend">
+          <div className="legend-item">
+            <div className="legend-dot legend-dot-user-group"></div>
+            <span>פעילויות של הקבוצה שלי</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-dot legend-dot-weekly"></div>
+            <span>פעולה שבועית</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+</script>

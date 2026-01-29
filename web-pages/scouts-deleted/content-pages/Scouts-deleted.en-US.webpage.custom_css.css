@@ -1,0 +1,59 @@
+.statusCard {
+}
+
+.divContent {
+  display: flex;
+  gap: 1vw;
+}
+.container.container-full {
+    max-width: 100%;
+}
+.main-content {
+  /* margin-right: 150px; */
+          margin-left: auto;
+        margin-right: auto;
+        width: 75vw;
+}
+/* הוסף גם את זה (החלף .your-element בשם הקלאס שלך) */
+.main-content::-webkit-scrollbar {
+  display: none;
+}
+.main-content{
+  scrollbar-width: none; /* Firefox */
+-ms-overflow-style: none; /* IE and Edge */
+}
+.containerPage{
+  width:75vw;
+  margin-right:auto;
+  margin-left:auto;
+}
+/* @media (min-width: 900px) {
+  .containerPage {
+    width:90vw;
+
+    margin-right:auto;
+    margin-left:auto;
+  } */
+  @media (max-width:768) {
+    .containerPage{
+    width: 90vw;
+    margin-right: auto;
+    margin-left: auto;
+  }}
+/* .main-content{
+    
+        margin-left: auto;
+        margin-right: auto;
+        width: 75vw;
+
+} */
+  .divSideBar {
+    display: block;
+    /* מוצג במסכים גדולים מ-768px */
+  }
+}
+
+.divSideBar {
+  display: none;
+  /* מוסתר כברירת מחדל (מובייל) */
+}

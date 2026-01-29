@@ -1,0 +1,9 @@
+adx_adx_CloudFlowConsumer_adx_webrole:
+- []
+- []
+adx_cloudflowconsumerid: edeac929-48cf-f011-bbd3-6045bde0bda4
+adx_flowapiurl: /_api/cloudflow/v1.0/trigger/12bc43cb-47cf-f011-bbd3-7ced8d2d9871
+adx_flowtriggerurl: ''
+adx_metadata: ''
+adx_name: hashomerGPT
+adx_processid: 12bc43cb-47cf-f011-bbd3-7ced8d2d9871

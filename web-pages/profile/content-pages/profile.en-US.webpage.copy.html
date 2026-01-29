@@ -1,0 +1,763 @@
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+<script type="text/babel">
+  const { useState, useEffect, useRef } = React;
+  const { Provider, useSelector, useDispatch } = window.ReactRedux;
+
+  // Editable Field Component
+  const EditableField = ({ label, value, fieldName, onSave, type = "text", isTextarea = false, canEdit = true }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(value);
+    const [isSaving, setIsSaving] = useState(false);
+    const inputRef = useRef(null);
+
+    // Reset edit value when prop value changes
+    useEffect(() => {
+      setEditValue(value);
+    }, [value]);
+
+    // Focus input when entering edit mode
+    useEffect(() => {
+      if (isEditing && inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, [isEditing]);
+
+    const handleEdit = () => {
+      setIsEditing(true);
+    };
+
+    const handleSave = async () => {
+      setIsSaving(true);
+      try {
+        await onSave(fieldName, editValue);
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Error saving field:', error);
+        alert('שגיאה בשמירת השדה');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    const handleCancel = () => {
+      setEditValue(value);
+      setIsEditing(false);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !isTextarea) {
+        e.preventDefault();
+        handleSave();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      }
+    };
+
+    return (
+      <div className="form-field">
+        <label>{label}</label>
+        <div className={`input-wrapper ${isEditing ? 'editing' : ''}`}>
+          {/* Display field - shows when not editing */}
+          {!isEditing && (
+            <div className="display-value">
+              {value || '—'}
+            </div>
+          )}
+
+          {/* Edit mode - shows input at half width with action buttons */}
+          {isEditing && (
+            <div className="edit-controls">
+              {isTextarea ? (
+                <textarea
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isSaving}
+                  className="edit-input"
+                />
+              ) : (
+                <input
+                  ref={inputRef}
+                  type={type}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isSaving}
+                  className="edit-input"
+                />
+              )}
+
+              <div className="edit-actions">
+                <button
+                  className="action-btn save-btn"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  aria-label="שמירה"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21.7955 7.54597L9.79553 19.546C9.69101 19.6509 9.56682 19.7341 9.43008 19.7909C9.29333 19.8476 9.14672 19.8769 8.99866 19.8769C8.85059 19.8769 8.70398 19.8476 8.56723 19.7909C8.43049 19.7341 8.3063 19.6509 8.20178 19.546L2.95178 14.296C2.84713 14.1913 2.76412 14.0671 2.70749 13.9304C2.65085 13.7936 2.6217 13.6471 2.6217 13.4991C2.6217 13.3511 2.65085 13.2046 2.70749 13.0678C2.76412 12.9311 2.84713 12.8069 2.95178 12.7022C3.05643 12.5976 3.18066 12.5146 3.31739 12.4579C3.45412 12.4013 3.60066 12.3721 3.74866 12.3721C3.89665 12.3721 4.04319 12.4013 4.17992 12.4579C4.31665 12.5146 4.44088 12.5976 4.54553 12.7022L8.99959 17.1563L20.2037 5.9541C20.415 5.74276 20.7016 5.62402 21.0005 5.62402C21.2994 5.62402 21.5861 5.74276 21.7974 5.9541C22.0087 6.16544 22.1275 6.45209 22.1275 6.75098C22.1275 7.04986 22.0087 7.33651 21.7974 7.54785L21.7955 7.54597Z" fill="white" />
+                  </svg>
+
+                </button>
+                <button
+                  className="action-btn cancel-btn"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  aria-label="ביטול"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19.2807 18.2198C19.3504 18.2895 19.4056 18.3722 19.4433 18.4632C19.4811 18.5543 19.5005 18.6519 19.5005 18.7504C19.5005 18.849 19.4811 18.9465 19.4433 19.0376C19.4056 19.1286 19.3504 19.2114 19.2807 19.281C19.211 19.3507 19.1283 19.406 19.0372 19.4437C18.9462 19.4814 18.8486 19.5008 18.7501 19.5008C18.6515 19.5008 18.5539 19.4814 18.4629 19.4437C18.3718 19.406 18.2891 19.3507 18.2194 19.281L12.0001 13.0607L5.78068 19.281C5.63995 19.4218 5.44907 19.5008 5.25005 19.5008C5.05103 19.5008 4.86016 19.4218 4.71943 19.281C4.5787 19.1403 4.49963 18.9494 4.49963 18.7504C4.49963 18.5514 4.5787 18.3605 4.71943 18.2198L10.9397 12.0004L4.71943 5.78104C4.5787 5.64031 4.49963 5.44944 4.49963 5.25042C4.49963 5.05139 4.5787 4.86052 4.71943 4.71979C4.86016 4.57906 5.05103 4.5 5.25005 4.5C5.44907 4.5 5.63995 4.57906 5.78068 4.71979L12.0001 10.9401L18.2194 4.71979C18.3602 4.57906 18.551 4.5 18.7501 4.5C18.9491 4.5 19.1399 4.57906 19.2807 4.71979C19.4214 4.86052 19.5005 5.05139 19.5005 5.25042C19.5005 5.44944 19.4214 5.64031 19.2807 5.78104L13.0604 12.0004L19.2807 18.2198Z" fill="#333333" />
+                  </svg>
+
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Edit icon - only visible when canEdit is true */}
+          {canEdit && (
+            <button
+              className="edit-icon-btn"
+              onClick={handleEdit}
+              disabled={isEditing}
+              aria-label={`עריכת ${label}`}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.1824 4.95954L13.0402 1.81798C12.7765 1.55435 12.4188 1.40625 12.0459 1.40625C11.6731 1.40625 11.3154 1.55435 11.0517 1.81798L2.38079 10.4882C2.24976 10.6184 2.14587 10.7734 2.07514 10.944C2.00442 11.1147 1.96825 11.2977 1.96876 11.4824V14.6247C1.96876 14.9977 2.11691 15.3553 2.38064 15.6191C2.64436 15.8828 3.00204 16.0309 3.37501 16.0309H15.1875C15.4113 16.0309 15.6259 15.9421 15.7841 15.7838C15.9424 15.6256 16.0313 15.411 16.0313 15.1872C16.0313 14.9634 15.9424 14.7488 15.7841 14.5906C15.6259 14.4323 15.4113 14.3434 15.1875 14.3434H8.78907L16.1824 6.94868C16.3131 6.81809 16.4167 6.66304 16.4874 6.49239C16.5581 6.32174 16.5945 6.13883 16.5945 5.95411C16.5945 5.76939 16.5581 5.58648 16.4874 5.41583C16.4167 5.24518 16.3131 5.09013 16.1824 4.95954ZM6.39844 14.3434H3.65626V11.6013L9.56251 5.69501L12.3047 8.4372L6.39844 14.3434ZM13.5 7.24189L10.7578 4.4997L12.0473 3.21017L14.7895 5.95236L13.5 7.24189Z" fill="#1560A0" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const ProfilePage = () => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [profileImage, setProfileImage] = useState(null);
+    const [traineesSearch, setTraineesSearch] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    // Redux - Get current user and permissions (same as Home page)
+    const dispatch = useDispatch();
+
+    // Load user data to ensure permissions are correct (fixes Coordinator seeing Instructor view)
+    useEffect(() => {
+      if (typeof loadCurrentUser === 'function') {
+        console.log('🔎 ProfilePage: Dispatching loadCurrentUser...');
+        dispatch(loadCurrentUser());
+      } else {
+        console.warn('loadCurrentUser Global action not found');
+      }
+
+      // Fetch Groups Metadata (Shichvot)
+      if (typeof window.fetchGroupsMetadata === 'function') {
+        dispatch(window.fetchGroupsMetadata());
+      }
+    }, [dispatch]);
+    const currentUser = useSelector(state => state?.user?.user || null);
+    const allTrainees = useSelector(state => state?.trainees?.data || []);  // All data from Redux
+    const traineesData = useSelector(state => state?.trainees?.data || []);  // For trainees table
+
+    useEffect(() => {
+      console.log('👤 ROLE DEBUG -----------------');
+      console.log('currentUser from Redux:', currentUser);
+      console.log('currentUser.contactType (raw):', currentUser?.contactType);
+      console.log('typeof contactType:', typeof currentUser?.contactType);
+      console.log('isCoordinator (contactType == 38):', isCoordinator);
+      console.log('isInstructor (contactType == 14):', isInstructor);
+      console.log('viewType param:', viewType);
+      console.log('viewId param:', viewId);
+      console.log('--------------------------------');
+    }, [currentUser, isCoordinator, isInstructor, viewType, viewId]);
+
+    const isCoordinator = useSelector(state => {
+      const user = state?.user?.user;
+      return user?.contactType == 38 || Number(user?.contactType) === 38;
+    });
+    const isInstructor = useSelector(state => {
+      const user = state?.user?.user;
+      return user?.contactType == 14 || Number(user?.contactType) === 14;
+    });
+    const userPermissions = useSelector(state => {
+      const user = state?.user?.user;
+      const isInstr = user?.contactType == 14 || Number(user?.contactType) === 14;
+      const isCoord = user?.contactType == 38 || Number(user?.contactType) === 38;
+      return {
+        isInstructor: isInstr,
+        isCoordinator: isCoord,
+        canMarkAttendance: isInstr,
+        canViewCoordinatorsStats: isCoord
+      };
+    });
+    // URL params - read once and store in state
+    const [viewId] = useState(() => {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('id');
+    });
+    const [viewType] = useState(() => {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('type');
+    });
+
+    // Permissions
+    const isMyProfile = !viewId;
+    const canEdit = isMyProfile;
+
+    // Load trainees if coordinator viewing instructor
+    // useEffect(() => {
+    //   console.log('🔍 Checking permissions:', { isCoordinator, viewType, viewId });
+    //   if (isCoordinator && viewType === 'instructor' && viewId) {
+    //     console.log('👥 Loading trainees for instructor:', viewId);
+    //     if (typeof window.fetchTraineesData === 'function') {
+    //       dispatch(window.fetchTraineesData({
+    //         userId: viewId,
+    //         contactTypeToFetch: '7' // Trainees
+    //       }));
+    //     }
+    //   }
+    // }, [isCoordinator, viewType, viewId, dispatch]);
+
+    // Define table columns for trainees (same as Campers2 page)
+    const traineesColumns = [
+      {
+        header: (
+          <div className="header-with-icon">
+            <span>שם</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_558_3538)">
+                <path d="M8.00039 5.57123C7.72982 5.85116 7.28356 5.85874 7.00363 5.58817C7.00361 5.58815 7.00365 5.58819 7.00363 5.58817L5.00828 3.6595V12.2403C5.00828 12.6296 4.69268 12.9452 4.30336 12.9452C3.91405 12.9452 3.59845 12.6296 3.59845 12.2403V3.6595L1.60316 5.58811C1.32781 5.86334 0.881482 5.86324 0.606257 5.58789C0.331032 5.31255 0.33113 4.86622 0.606477 4.59099C0.612128 4.58535 0.617874 4.57979 0.623713 4.57434L3.81345 1.49112C3.82522 1.4797 3.83882 1.4717 3.8512 1.46123L3.86293 1.45154C3.87826 1.4392 3.89243 1.42482 3.9085 1.41393C3.91115 1.41217 3.91418 1.41101 3.91686 1.40924C3.93596 1.39666 3.95626 1.38732 3.97625 1.37678C3.9968 1.366 4.01678 1.35415 4.03807 1.34552C4.05995 1.33735 4.08223 1.33029 4.10482 1.32437C4.12326 1.31898 4.14116 1.31154 4.15991 1.30767L4.16911 1.30647C4.19156 1.30213 4.21419 1.30107 4.23692 1.29892C4.25758 1.29702 4.27795 1.29353 4.29871 1.29339L4.30336 1.29297L4.30773 1.29339C4.32835 1.29357 4.34865 1.29692 4.3692 1.29896C4.3919 1.30107 4.41453 1.30213 4.43698 1.30643L4.44688 1.30774C4.46521 1.31154 4.48269 1.31891 4.5007 1.3242C4.52356 1.3301 4.5461 1.33716 4.56823 1.34534C4.57141 1.34665 4.57497 1.34714 4.5781 1.34848C4.59573 1.35592 4.61176 1.36706 4.62879 1.37597C4.64952 1.3859 4.66973 1.39689 4.68934 1.40889C4.6923 1.41083 4.69558 1.4122 4.6985 1.41418C4.7126 1.42359 4.72458 1.43617 4.73794 1.44671C4.74422 1.45164 4.75031 1.45676 4.75641 1.46194C4.76843 1.47209 4.78168 1.47988 4.79314 1.49098L7.98301 4.57434C8.26309 4.84475 8.27093 5.29101 8.00053 5.57109C8.00048 5.57113 8.00043 5.57118 8.00039 5.57123ZM15.402 10.4292C15.1314 10.1493 14.6851 10.1417 14.4052 10.4123C14.4052 10.4123 14.4052 10.4123 14.4052 10.4123L12.4099 12.3409V3.76017C12.4099 3.37085 12.0943 3.05525 11.705 3.05525C11.3156 3.05525 11 3.37085 11 3.76017V12.3409L9.00475 10.4124C8.72969 10.1369 8.28336 10.1365 8.00785 10.4115C7.73234 10.6866 7.73197 11.1329 8.00703 11.4084C8.01301 11.4144 8.01911 11.4203 8.02531 11.4261L11.215 14.5093C11.2276 14.5214 11.242 14.5301 11.2551 14.541C11.2649 14.5492 11.2744 14.5577 11.2846 14.5654C11.2958 14.5737 11.3062 14.5832 11.3177 14.5908C11.3383 14.6033 11.3595 14.6148 11.3812 14.6251C11.3983 14.6341 11.4142 14.6449 11.4322 14.6525L11.4397 14.6552C11.4645 14.6643 11.4898 14.6721 11.5155 14.6783C11.5323 14.683 11.548 14.6898 11.5652 14.6932L11.5702 14.6942C11.6591 14.7117 11.7506 14.7117 11.8395 14.6942L11.8445 14.6932C11.8617 14.6897 11.8774 14.683 11.8942 14.6783C11.9199 14.6721 11.9452 14.6643 11.97 14.6552L11.9775 14.6525C11.9955 14.6449 12.0114 14.6341 12.0285 14.6251C12.0502 14.6148 12.0714 14.6033 12.092 14.5908C12.1035 14.5832 12.1139 14.5737 12.1251 14.5654C12.1353 14.5577 12.1448 14.5492 12.1546 14.541C12.1677 14.53 12.1821 14.5214 12.1947 14.5093L15.3846 11.4261C15.6647 11.1557 15.6725 10.7094 15.4021 10.4294C15.4021 10.4293 15.402 10.4293 15.402 10.4292Z" fill="#1560A0" />
+              </g>
+              <defs>
+                <clipPath id="clip0_558_3538">
+                  <rect width="16" height="16" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        ),
+        accessor: "name",
+        render: (trainee) => (
+          <div className="name-cell-with-dot">
+            <span className={`status-dot ${trainee.zooz_status1 === 696480000 ? 'active' : 'inactive'}`}></span>
+            <span>{trainee.name}</span>
+          </div>
+        )
+      },
+      {
+        header: "גיל",
+        accessor: "age"
+      },
+      {
+        header: "מייל",
+        accessor: "email",
+        render: (trainee) => (
+          <a href={`mailto:${trainee.email}`} className="email-link">
+            {trainee.email}
+          </a>
+        )
+      },
+      {
+        header: "טלפון נייד",
+        accessor: "phone",
+        render: (trainee) => (
+          <div className="phone-cell">
+            <span>{trainee.phone}</span>
+            <WhatsAppButton phone={trainee.phone} />
+          </div>
+        )
+      },
+      {
+        header: "הורה",
+        accessor: "parentName"
+      },
+      {
+        header: "טלפון הורה",
+        accessor: "parentPhone",
+        render: (trainee) => (
+          <div className="phone-cell">
+            <span>{trainee.parentPhone}</span>
+            <WhatsAppButton phone={trainee.parentPhone} />
+          </div>
+        )
+      },
+      {
+        header: (
+          <div className="header-with-icon">
+            <span>אחוזי נוכחות</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clipPath="url(#clip0_558_3539)">
+                <path d="M8.00039 5.57123C7.72982 5.85116 7.28356 5.85874 7.00363 5.58817C7.00361 5.58815 7.00365 5.58819 7.00363 5.58817L5.00828 3.6595V12.2403C5.00828 12.6296 4.69268 12.9452 4.30336 12.9452C3.91405 12.9452 3.59845 12.6296 3.59845 12.2403V3.6595L1.60316 5.58811C1.32781 5.86334 0.881482 5.86324 0.606257 5.58789C0.331032 5.31255 0.33113 4.86622 0.606477 4.59099C0.612128 4.58535 0.617874 4.57979 0.623713 4.57434L3.81345 1.49112C3.82522 1.4797 3.83882 1.4717 3.8512 1.46123L3.86293 1.45154C3.87826 1.4392 3.89243 1.42482 3.9085 1.41393C3.91115 1.41217 3.91418 1.41101 3.91686 1.40924C3.93596 1.39666 3.95626 1.38732 3.97625 1.37678C3.9968 1.366 4.01678 1.35415 4.03807 1.34552C4.05995 1.33735 4.08223 1.33029 4.10482 1.32437C4.12326 1.31898 4.14116 1.31154 4.15991 1.30767L4.16911 1.30647C4.19156 1.30213 4.21419 1.30107 4.23692 1.29892C4.25758 1.29702 4.27795 1.29353 4.29871 1.29339L4.30336 1.29297L4.30773 1.29339C4.32835 1.29357 4.34865 1.29692 4.3692 1.29896C4.3919 1.30107 4.41453 1.30213 4.43698 1.30643L4.44688 1.30774C4.46521 1.31154 4.48269 1.31891 4.5007 1.3242C4.52356 1.3301 4.5461 1.33716 4.56823 1.34534C4.57141 1.34665 4.57497 1.34714 4.5781 1.34848C4.59573 1.35592 4.61176 1.36706 4.62879 1.37597C4.64952 1.3859 4.66973 1.39689 4.68934 1.40889C4.6923 1.41083 4.69558 1.4122 4.6985 1.41418C4.7126 1.42359 4.72458 1.43617 4.73794 1.44671C4.74422 1.45164 4.75031 1.45676 4.75641 1.46194C4.76843 1.47209 4.78168 1.47988 4.79314 1.49098L7.98301 4.57434C8.26309 4.84475 8.27093 5.29101 8.00053 5.57109C8.00048 5.57113 8.00043 5.57118 8.00039 5.57123ZM15.402 10.4292C15.1314 10.1493 14.6851 10.1417 14.4052 10.4123C14.4052 10.4123 14.4052 10.4123 14.4052 10.4123L12.4099 12.3409V3.76017C12.4099 3.37085 12.0943 3.05525 11.705 3.05525C11.3156 3.05525 11 3.37085 11 3.76017V12.3409L9.00475 10.4124C8.72969 10.1369 8.28336 10.1365 8.00785 10.4115C7.73234 10.6866 7.73197 11.1329 8.00703 11.4084C8.01301 11.4144 8.01911 11.4203 8.02531 11.4261L11.215 14.5093C11.2276 14.5214 11.242 14.5301 11.2551 14.541C11.2649 14.5492 11.2744 14.5577 11.2846 14.5654C11.2958 14.5737 11.3062 14.5832 11.3177 14.5908C11.3383 14.6033 11.3595 14.6148 11.3812 14.6251C11.3983 14.6341 11.4142 14.6449 11.4322 14.6525L11.4397 14.6552C11.4645 14.6643 11.4898 14.6721 11.5155 14.6783C11.5323 14.683 11.548 14.6898 11.5652 14.6932L11.5702 14.6942C11.6591 14.7117 11.7506 14.7117 11.8395 14.6942L11.8445 14.6932C11.8617 14.6897 11.8774 14.683 11.8942 14.6783C11.9199 14.6721 11.9452 14.6643 11.97 14.6552L11.9775 14.6525C11.9955 14.6449 12.0114 14.6341 12.0285 14.6251C12.0502 14.6148 12.0714 14.6033 12.092 14.5908C12.1035 14.5832 12.1139 14.5737 12.1251 14.5654C12.1353 14.5577 12.1448 14.5492 12.1546 14.541C12.1677 14.53 12.1821 14.5214 12.1947 14.5093L15.3846 11.4261C15.6647 11.1557 15.6725 10.7094 15.4021 10.4294C15.4021 10.4293 15.402 10.4293 15.402 10.4292Z" fill="#1560A0" />
+              </g>
+              <defs>
+                <clipPath id="clip0_558_3539">
+                  <rect width="16" height="16" fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          </div>
+        ),
+        accessor: "attendancePercent",
+        render: (trainee) => {
+          const percentage = parseInt(trainee.attendancePercent);
+          let colorClass = '';
+          let icon = null;
+          let displayText = '';
+
+          if (!percentage) {
+            colorClass = 'no-attendance';
+            icon = <svg width="19" height="2" viewBox="0 0 19 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4.76562 1.25H0.945312V0.0703125H4.76562V1.25ZM9.1875 1.25H5.36719V0.0703125H9.1875V1.25ZM13.6094 1.25H9.78906V0.0703125H13.6094V1.25ZM18.0312 1.25H14.2109V0.0703125H18.0312V1.25Z" fill="#333333" />
+            </svg>;
+            displayText = '';
+          } else if (percentage >= 76) {
+            colorClass = 'high-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.02843 5.32275V10.8228C2.02843 11.0051 2.10086 11.18 2.22979 11.3089C2.35872 11.4378 2.53359 11.5103 2.71593 11.5103C2.89826 11.5103 3.07313 11.4378 3.20206 11.3089C3.33099 11.18 3.40343 11.0051 3.40343 10.8228V6.98221L10.4795 14.0592C10.5434 14.1231 10.6192 14.1738 10.7027 14.2084C10.7861 14.243 10.8756 14.2608 10.9659 14.2608C11.0563 14.2608 11.1457 14.243 11.2292 14.2084C11.3127 14.1738 11.3885 14.1231 11.4523 14.0592L14.4034 11.1072L20.1045 16.8092C20.2335 16.9382 20.4085 17.0106 20.5909 17.0106C20.7734 17.0106 20.9483 16.9382 21.0773 16.8092C21.2063 16.6802 21.2788 16.5052 21.2788 16.3228C21.2788 16.1403 21.2063 15.9654 21.0773 15.8363L14.8898 9.64885C14.826 9.58493 14.7502 9.53422 14.6667 9.49962C14.5832 9.46502 14.4938 9.44721 14.4034 9.44721C14.3131 9.44721 14.2236 9.46502 14.1402 9.49962C14.0567 9.53422 13.9809 9.58493 13.917 9.64885L10.9659 12.6008L4.37538 6.01025H8.21593C8.39826 6.01025 8.57313 5.93782 8.70206 5.80889C8.83099 5.67996 8.90343 5.50509 8.90343 5.32275C8.90343 5.14042 8.83099 4.96555 8.70206 4.83662C8.57313 4.70769 8.39826 4.63525 8.21593 4.63525H2.71593C2.53359 4.63525 2.35872 4.70769 2.22979 4.83662C2.10086 4.96555 2.02843 5.14042 2.02843 5.32275Z" fill="#0F9581" />
+            </svg>;
+            displayText = `${percentage}%`;
+          } else if (percentage == 75) {
+            colorClass = 'medium-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19.9033 14.25C19.9033 14.4323 19.8309 14.6072 19.702 14.7361C19.573 14.8651 19.3982 14.9375 19.2158 14.9375H4.09082C3.90848 14.9375 3.73362 14.8651 3.60468 14.7361C3.47575 14.6072 3.40332 14.4323 3.40332 14.25C3.40332 14.0677 3.47575 13.8928 3.60468 13.7639C3.73362 13.6349 3.90848 13.5625 4.09082 13.5625H19.2158C19.3982 13.5625 19.573 13.6349 19.702 13.7639C19.8309 13.8928 19.9033 14.0677 19.9033 14.25ZM4.09082 9.4375H19.2158C19.3982 9.4375 19.573 9.36507 19.702 9.23614C19.8309 9.1072 19.9033 8.93234 19.9033 8.75C19.9033 8.56766 19.8309 8.3928 19.702 8.26386C19.573 8.13493 19.3982 8.0625 19.2158 8.0625H4.09082C3.90848 8.0625 3.73362 8.13493 3.60468 8.26386C3.47575 8.3928 3.40332 8.56766 3.40332 8.75C3.40332 8.93234 3.47575 9.1072 3.60468 9.23614C3.73362 9.36507 3.90848 9.4375 4.09082 9.4375Z" fill="#DB992B" />
+            </svg>;
+            displayText = `${percentage}%`;
+          } else {
+            colorClass = 'low-attendance';
+            icon = <svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.02843 17.6978V12.1978C2.02843 12.0154 2.10086 11.8405 2.22979 11.7116C2.35872 11.5827 2.53359 11.5103 2.71593 11.5103C2.89826 11.5103 3.07313 11.5827 3.20206 11.7116C3.33099 11.8405 3.40343 12.0154 3.40343 12.1978V16.0383L10.4795 8.96135C10.5434 8.89743 10.6192 8.84672 10.7027 8.81212C10.7861 8.77752 10.8756 8.75971 10.9659 8.75971C11.0563 8.75971 11.1457 8.77752 11.2292 8.81212C11.3127 8.84672 11.3885 8.89743 11.4523 8.96135L14.4034 11.9133L20.1045 6.21135C20.2335 6.08234 20.4085 6.00987 20.5909 6.00987C20.7734 6.00987 20.9483 6.08234 21.0773 6.21135C21.2063 6.34035 21.2788 6.51532 21.2788 6.69775C21.2788 6.88019 21.2063 7.05516 21.0773 7.18416L14.8898 13.3717C14.826 13.4356 14.7502 13.4863 14.6667 13.5209C14.5832 13.5555 14.4938 13.5733 14.4034 13.5733C14.3131 13.5733 14.2236 13.5555 14.1402 13.5209C14.0567 13.4863 13.9809 13.4356 13.917 13.3717L10.9659 10.4197L4.37538 17.0103H8.21593C8.39826 17.0103 8.57313 17.0827 8.70206 17.2116C8.83099 17.3405 8.90343 17.5154 8.90343 17.6978C8.90343 17.8801 8.83099 18.055 8.70206 18.1839C8.57313 18.3128 8.39826 18.3853 8.21593 18.3853H2.71593C2.53359 18.3853 2.35872 18.3128 2.22979 18.1839C2.10086 18.055 2.02843 17.8801 2.02843 17.6978Z" fill="#D93D1E" />
+            </svg>;
+            displayText = `${percentage}%`;
+          }
+
+          return (
+            <span className={`attendance-badge ${colorClass}`}>
+              {displayText && <span className="attendance-number">{displayText}</span>}
+              {icon}
+            </span>
+          );
+        }
+      }
+    ];
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    // Handle photo change
+    const handlePhotoChange = (event) => {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProfileImage(reader.result);
+          // TODO: Upload to CRM/Database when connected
+          console.log('Photo selected:', file.name);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    // Handle photo delete
+    const handlePhotoDelete = () => {
+      setProfileImage(null);
+      // TODO: Delete from CRM/Database when connected
+      console.log('Photo deleted');
+    };
+
+    // Trigger file input
+    const triggerFileInput = () => {
+      document.getElementById('profile-photo-input').click();
+    };
+
+    // Profile data - use currentUser from Redux for own profile, or fetch from API for others
+    const [profileData, setProfileData] = useState({
+      fullName: "",
+      birthDate: "",
+      gender: "",
+      email: "",
+      phone: "",
+      emergencyPhone: "",
+      address: "",
+      joiningDate: "",
+      kenName: ""
+    });
+
+    // Load profile data - localStorage first, then Redux
+    useEffect(() => {
+      // If viewing own profile
+      if (isMyProfile && currentUser) {
+        console.log('👤 Using currentUser from Redux:', currentUser);
+        setProfileData({
+          fullName: currentUser.fullName || '',
+          birthDate: currentUser.birthdate ? new Date(currentUser.birthdate).toLocaleDateString('he-IL') : '',
+          gender: currentUser.sho_pl_gender || '',
+          email: currentUser.emailaddress1 || currentUser.email || '',
+          phone: currentUser.mobilephone || currentUser.phone || '',
+          emergencyPhone: currentUser.sho_s_person_details_for_disaster || '',
+          address: currentUser.address1_line1 || '',
+          joiningDate: currentUser.zooz_joining_date ? new Date(currentUser.zooz_joining_date).toLocaleDateString('he-IL') : '',
+          kenName: ''
+        });
+        setLoading(false);
+        return;
+      }
+
+      // If viewing instructor profile
+      if (viewId) {
+        // Fetch fresh data from API
+        // This fixes the issue where Redux data gets overwritten by the students list
+        const fetchInstructorDetails = () => {
+          console.log('🔄 Fetching full instructor details from API...');
+          webapi.safeAjax({
+            type: 'GET',
+            contentType: 'application/json',
+            url: `/_api/contacts(${viewId})?$select=firstname,lastname,birthdate,sho_pl_gender,emailaddress1,mobilephone,sho_s_person_details_for_disaster,address1_line1,zooz_joining_date,contactid`,
+            success: function (data) {
+              console.log('✅ Fetched instructor details:', data);
+              setProfileData({
+                fullName: (data.firstname || '') + ' ' + (data.lastname || ''),
+                birthDate: data.birthdate ? new Date(data.birthdate).toLocaleDateString('he-IL') : '',
+                gender: data.sho_pl_gender || '',
+                email: data.emailaddress1 || '',
+                phone: data.mobilephone || '',
+                emergencyPhone: data.sho_s_person_details_for_disaster || '',
+                address: data.address1_line1 || '',
+                joiningDate: data.zooz_joining_date ? new Date(data.zooz_joining_date).toLocaleDateString('he-IL') : '',
+                kenName: ''
+              });
+              setLoading(false);
+            },
+            error: function (xhr, status, error) {
+              console.error('❌ Error fetching instructor details:', error);
+              setError('לא ניתן לטעון את פרטי המדריך');
+              setLoading(false);
+            }
+          });
+        };
+
+        fetchInstructorDetails();
+      }
+    }, [isMyProfile, currentUser, viewId]);
+
+    // Debug logging for table visibility
+    useEffect(() => {
+      console.log('📊 Table Visibility Debug:', {
+        isCoordinator,
+        viewType,
+        viewId,
+        willShowTable: Boolean(isCoordinator && viewType === 'instructor' && viewId)
+      });
+    }, [isCoordinator, viewType, viewId]);
+
+
+
+
+    // Map profile field names to Dataverse field names
+    const fieldMapping = {
+      birthDate: 'birthdate',
+      gender: 'sho_pl_gender',
+      email: 'emailaddress1',
+      phone: 'mobilephone',
+      emergencyPhone: 'sho_s_person_details_for_disaster',
+      address: 'address1_line1',
+      joiningDate: 'zooz_joining_date'
+    };
+
+    // Save field handler - saves to Dataverse API
+    const handleSaveField = async (fieldName, value) => {
+      console.log(`💾 Saving ${fieldName}:`, value);
+      setSaving(true);
+
+      try {
+        const contactId = viewId || currentUser?.id;
+
+        if (!contactId) {
+          throw new Error('No contact ID available');
+        }
+
+        // Build the record object
+        const record = {};
+
+        // Handle fullName specially (split to firstname/lastname)
+        if (fieldName === 'fullName') {
+          const names = value.trim().split(/\s+/); // Split by any whitespace
+          record.firstname = names[0] || '';
+          record.lastname = names.length > 1 ? names.slice(1).join(' ') : '';
+        } else {
+          const dataverseField = fieldMapping[fieldName];
+          if (dataverseField) {
+            record[dataverseField] = value;
+          }
+        }
+
+        // Make API call
+        await new Promise((resolve, reject) => {
+          webapi.safeAjax({
+            type: 'PATCH',
+            contentType: 'application/json',
+            url: `/_api/contacts(${contactId})`,
+            data: JSON.stringify(record),
+            success: function (data, textStatus, xhr) {
+              console.log('✅ Record updated successfully');
+              resolve(data);
+            },
+            error: function (xhr, textStatus, errorThrown) {
+              console.error('❌ Error updating record:', errorThrown);
+              reject(errorThrown || 'Failed to save field');
+            }
+          });
+        });
+
+        // Update local state after successful save
+        setProfileData(prev => ({
+          ...prev,
+          [fieldName]: value
+        }));
+
+        console.log('✅ Field saved successfully!');
+      } catch (err) {
+        console.error('❌ Save error:', err);
+        throw err; // Re-throw so EditableField can handle it
+      } finally {
+        setSaving(false);
+      }
+    };
+    useEffect(() => {
+      if (userPermissions.canViewCoordinatorsStats && typeof window.fetchActiveInstructors === 'function' && currentUser?.id) {
+        console.log('👨‍🏫 Fetching active instructors for coordinator:', currentUser.id);
+        dispatch(window.fetchActiveInstructors(currentUser.id));
+      }
+    }, [dispatch, userPermissions.canViewCoordinatorsStats, currentUser?.id]);
+
+    return (
+      <div className="page-layout">
+        {!isMobile && <SidebarMenu />}
+        <div className={`profile-page-container ${!isMobile ? "main-content" : ""}`}>
+          <div className="profile-content">
+
+            {/* Page Header */}
+            <div className="profile-header">
+              <h1>{isMyProfile ? 'הפרופיל שלי' : (profileData.fullName || 'פרטי משתמש')}</h1>
+            </div>
+
+            {/* Loading State */}
+            {loading && (
+              <div className="loading-message" >
+                🔄 טוען נתוני פרופיל...
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="error-message">
+                ❌ {error}
+              </div>
+            )}
+
+            {/* Content - only show when not loading */}
+            {!loading && (
+              <>
+                {/* Profile Picture Section */}
+                <div className="profile-picture-section">
+                  <div className="profile-picture-wrapper">
+                    {profileImage ? (
+                      <img src={profileImage} alt="Profile" className="profile-picture" />
+                    ) : (
+                      <svg className="profile-picture-placeholder" width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M120 60C120 79.0128 111.157 95.9602 97.358 106.953C87.1088 115.12 74.1239 120 60 120C45.8761 120 32.8912 115.12 22.642 106.953C8.84336 95.9602 0 79.0128 0 60C0 26.8633 26.8633 0 60 0C93.1367 0 120 26.8633 120 60Z" fill="#CEDED7" />
+                      </svg>
+                    )}
+
+
+                  </div>
+
+                  {canEdit && (
+                    <div className="profile-picture-actions">
+                      <button className="btn-change-photo" onClick={triggerFileInput}>
+                        החלפת תמונה
+                      </button>
+
+                      <button className="btn-delete-photo" onClick={handlePhotoDelete}>
+                        מחיקה
+                      </button>
+                    </div>
+                  )}
+
+                  {canEdit && (
+                    <input
+                      type="file"
+                      id="profile-photo-input"
+                      className="hidden-file-input"
+                      accept="image/jpeg,image/jpg,image/png,image/svg+xml"
+                      onChange={handlePhotoChange}
+                    />
+                  )}
+                </div>
+
+                {/* Form Sections */}
+                <div className="profile-form-sections">
+
+                  {/* Section 1: Basic Information */}
+                  <div className="form-section">
+                    <h2 className="section-title">מידע בסיסי</h2>
+
+                    <EditableField
+                      label="שם מלא"
+                      value={profileData.fullName}
+                      fieldName="fullName"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="תאריך לידה"
+                      value={profileData.birthDate}
+                      fieldName="birthDate"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="מין"
+                      value={profileData.gender}
+                      fieldName="gender"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+                  </div>
+
+                  {/* Section 2: Contact Information */}
+                  <div className="form-section">
+                    <h2 className="section-title">פרטי התקשרות</h2>
+
+                    <EditableField
+                      label="כתובת אימייל"
+                      value={profileData.email}
+                      fieldName="email"
+                      onSave={handleSaveField}
+                      type="email"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="טלפון נייד"
+                      value={profileData.phone}
+                      fieldName="phone"
+                      onSave={handleSaveField}
+                      type="tel"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="טלפון נייד לחירום (הורה)"
+                      value={profileData.emergencyPhone}
+                      fieldName="emergencyPhone"
+                      onSave={handleSaveField}
+                      type="tel"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="כתובת"
+                      value={profileData.address}
+                      fieldName="address"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+                  </div>
+
+                  {/* Section 3: Role Information */}
+                  <div className="form-section">
+                    <h2 className="section-title">פרטי תפקיד</h2>
+
+                    <EditableField
+                      label="תאריך הצטרפות לקן"
+                      value={profileData.joiningDate}
+                      fieldName="joiningDate"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+
+                    <EditableField
+                      label="קן"
+                      value={profileData.kenName}
+                      fieldName="kenName"
+                      onSave={handleSaveField}
+                      type="text"
+                      canEdit={canEdit}
+                    />
+                  </div>
+
+                </div>
+
+                {/* Trainees Table - only show if coordinator viewing instructor */}
+                {isCoordinator && viewType === 'instructor' && viewId && (
+                  <div className="trainees-table-section" >
+                    <UnifiedDataTable
+                      columns={traineesColumns}
+                      data={traineesData}
+                      title="חניכים/ות של המדריך"
+                      search={traineesSearch}
+                      setSearch={setTraineesSearch}
+                      searchPlaceholder="חיפוש חניך/ה"
+                      mode="basic"
+                      disableAutoFetch={true}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {/* End of loading condition */}
+
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render the app
+  const rootElement = document.getElementById("profile-root");
+  if (rootElement) {
+    // Use global store (same as Home page)
+    const storeToUse = typeof store !== 'undefined' ? store : window.store;
+
+    if (ReactDOM.createRoot) {
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <Provider store={storeToUse}>
+          <ProfilePage />
+        </Provider>
+      );
+    } else {
+      ReactDOM.render(
+        <Provider store={storeToUse}>
+          <ProfilePage />
+        </Provider>,
+        rootElement
+      );
+    }
+  }
+</script>
+<div id="profile-root"></div>
+<div class="row sectionBlockLayout text-start"
+  style="display: flex; flex-wrap: wrap; margin: 0px; min-height: auto; padding: 8px;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-12 columnBlockLayout"
+      style="flex-grow: 1; display: flex; flex-direction: column; min-width: 250px;"></div>
+  </div>
+</div>

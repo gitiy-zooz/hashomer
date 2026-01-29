@@ -1,0 +1,139 @@
+<div id="root"></div>
+<script type="text/babel">
+  const App = () => {
+      const [email, setEmail] = React.useState('');
+      const [password, setPassword] = React.useState('');
+      const [loading, setLoading] = React.useState(false);
+      const [showForgotPassword, setShowForgotPassword] = React.useState(false);
+      const [resetEmail, setResetEmail] = React.useState('');
+
+      const handleSubmit = (e) => {
+          e.preventDefault();
+          setLoading(true);
+          // כאן תוסיפי את הלוגיקה של ההתחברות
+          console.log('Email:', email, 'Password:', password);
+      };
+
+const handleForgotPassword = (e) => {
+    e.preventDefault();
+    // שליחת המייל לשרת
+    console.log('שלח קישור לאיפוס לכתובת:', resetEmail);
+    
+    // מעבר לעמוד איפוס סיסמא
+    // החליפי את הנתיב לנתיב האמיתי של העמוד איפוס סיסמא שלך
+    window.location.href = '/ResetPasswordPage';
+};
+
+      return (
+          <div className="login-page">
+              <div className="login-right">
+                  <div className="logo-container">
+                      <img src="/נוער השומר 1.png" alt="נוער השומר 1" name="נוער השומר 1.png"/>
+                  </div>
+
+                  <div className="login-form-container">
+                      <h1 className="login-title">ברוכים הבאים</h1>
+
+                      <form onSubmit={handleSubmit} className="login-form">
+                          <div className="form-group">
+                              <label htmlFor="email">כתובת מייל</label>
+                              <input
+                                  type="email"
+                                  id="email"
+                                  value={email}
+                                  onChange={(e) => setEmail(e.target.value)}
+                                  required
+                              />
+                          </div>
+
+                          <div className="form-group">
+                              <label htmlFor="password">סיסמה</label>
+                              <input
+                                  type="password"
+                                  id="password"
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  required
+                              />
+                          </div>
+                          <div className="bottomButtons">
+                              <button type="submit" className="btn-submit" disabled={loading}>
+                                  {loading ? 'מתחבר...' : 'התחברות'}
+                              </button>
+
+                              <a 
+                                  href="#" 
+                                  className="forgot-password"
+                                  onClick={(e) => {
+                                      e.preventDefault();
+                                      setShowForgotPassword(true);
+                                  }}
+                              >
+                                  שכחת סיסמה?
+                              </a>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+              
+              <div className="login-left">
+                  <div className="illustration">
+                      <img src="/bg.png" alt="background" className="bg-image" />
+                      <img src="/kids.png" alt="kids" className="kids-image" />
+                  </div>
+              </div>
+
+              {showForgotPassword && (
+                  <div className="modal-overlay" onClick={() => setShowForgotPassword(false)}>
+                      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                              className="modal-close"
+                              onClick={() => setShowForgotPassword(false)}
+                          >
+                              ×
+                          </button>
+                          
+                          <h2 className="modal-title">שכחת סיסמה?</h2>
+                          <p className="modal-description">
+                              אנא הזן את כתובת המייל שהשתמשת בה בהרשמה למערכת.<br />
+                              נשלח עבורך קישור לאיפוס סיסמה חדשה
+                          </p>
+                          
+                          <form onSubmit={handleForgotPassword}>
+                              <div className="form-group">
+                                  <label htmlFor="reset-email">כתובת מייל</label>
+                                  <input
+                                      type="email"
+                                      id="reset-email"
+                                      value={resetEmail}
+                                      onChange={(e) => setResetEmail(e.target.value)}
+                                      required
+                                  />
+                              </div>
+                              
+                              <div className="modal-buttons">
+                                  <button type="submit" className="btn-modal-submit">
+                                     איפוס סיסמא
+                                  </button>
+                                  <button 
+                                      type="button" 
+                                      className="btn-modal-cancel"
+                                      onClick={() => setShowForgotPassword(false)}
+                                  >
+                                      ביטול
+                                  </button>
+                              </div>
+                          </form>
+                      </div>
+                  </div>
+              )}
+          </div>
+      );
+  };
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+</script>
+<div class="row sectionBlockLayout text-start" style="display: flex; flex-wrap: wrap; margin: 0px; min-height: auto; padding: 8px;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;"><div class="col-lg-12 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 250px;"></div></div>
+</div>

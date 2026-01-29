@@ -1,0 +1,19 @@
+adx_accountrelationship: 
+adx_append: true
+adx_appendto: true
+adx_childTablePermissions: []
+adx_contactrelationship: 
+adx_create: false
+adx_delete: false
+adx_entitylogicalname: zooz_activity
+adx_entityname: פעילות (> תוכן הפעילות)
+adx_entitypermission_webrole:
+- 082eba6f-6a87-44b0-957f-749bd1442011
+- 6e08bc2a-b12a-47a6-ad4f-7088adf476fa
+adx_entitypermissionid: 4c31cc6a-f77d-4b3e-86d9-11d9f6252947
+adx_parententitypermission: 6f82742a-0d79-4afb-9e57-fb543269a362
+adx_parentrelationship: zooz_activity_wheel_activity_zooz_activity
+adx_permissionfetchxml: 
+adx_read: true
+adx_scope: 756150003
+adx_write: false

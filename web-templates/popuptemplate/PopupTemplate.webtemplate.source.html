@@ -1,0 +1,350 @@
+
+<script type="text/babel">
+  const { useState, useEffect } = React;
+
+  window.ActivityPopup = ({ activityData, onClose }) => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    // Navigate to home page when closing popup
+    const handleClose = () => {
+      if (onClose) onClose();
+      window.location.href = '/Attendance';
+    };
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+
+
+    const [formData, setFormData] = React.useState({
+      attachments: [],
+    });
+
+    const fileInputRef = React.useRef(null);
+
+    // const handleFileChange = (e) => {
+    //   const files = Array.from(e.target.files);
+    //   setFormData((prev) => ({
+    //     ...prev,
+    //     attachments: [...prev.attachments, ...files],
+    //   }));
+    // };
+
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf", "application/msword"]; 
+      
+    const MAX_SIZE = 1 * 1024 * 1024; // 1MB in bytes
+      
+    const handleFileChange = (e) => {
+      const files = Array.from(e.target.files);
+    
+      const validFiles = files.filter((file) => {
+        const isValidType =
+          allowedTypes.includes(file.type) ||
+          file.name.toLowerCase().endsWith(".docx");
+        const isValidSize = file.size <= MAX_SIZE;
+      
+        if (!isValidType) {
+          alert(`❌ ${file.name}: ניתן להעלות קובץ בפורמט jpg, png, pdf, doc `);
+          return false;
+        }
+        if (!isValidSize) {
+          alert(`❌ ${file.name}: הקובץ גדול מ1MB`);
+          return false;
+        }
+        return true;
+      });
+    
+      if (validFiles.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          attachments: [...prev.attachments, ...validFiles],
+        }));
+      }
+    };
+
+
+    const handleChange = (field, value) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = async () => {
+      if (!formData.performed) {
+        alert("אנא סמנ/י אם הפעולה בוצעה לפי המתוכנן");
+        return;
+      }
+      if (!formData.howItWas?.trim()) {
+        alert("אנא מלא/י איך היה בכמה מילים");
+        return;
+      }
+      if (!formData.whatWasMissing?.trim()) {
+        alert("אנא מלא/י מה החניכים/ות הכי אהבו");
+        return;
+      }
+      if (!formData.whatToImprove?.trim()) {
+        alert("אנא מלא/י מה עבד פחות טוב");
+        return;
+      }
+      if (formData.attachments.length === 0) {
+        alert("אנא העלה/י לפחות קובץ אחד");
+        return;
+      }
+
+      // Check if webapi is available
+      if (typeof webapi === 'undefined' || typeof webapi.safeAjax !== 'function') {
+        console.error('❌ webapi.safeAjax is not available');
+        alert("❌ שגיאה: מערכת ה-API לא זמינה");
+        return;
+      }
+
+      // Prepare the update payload with correct Dataverse field names
+      // DON'T update zooz_status_act - let date determine if activity is in history
+      const updatePayload = {
+        zooz_as_plan: formData.performed === "yes" ? 696480000 : 696480001, // Yes = 696480000, No = 696480001
+        zooz_about_activity: formData.howItWas, // How it went
+        zooz_like_most: formData.whatWasMissing, // What trainees liked most
+        zooz_unlik: formData.whatToImprove // What didn't work well
+      };
+
+      console.log('📤 Updating activity with data:', updatePayload);
+
+      // Update activity status to completed in Dataverse using webapi.safeAjax
+      webapi.safeAjax({
+        type: "PATCH",
+        url: `/_api/zooz_activities(${activityData.activityId})`,
+        contentType: "application/json",
+        data: JSON.stringify(updatePayload),
+        headers: {
+          "OData-MaxVersion": "4.0",
+          "OData-Version": "4.0"
+        },
+        success: function (data) {
+          // TODO: Upload attachments to Dataverse
+          // You can implement file upload here after the activity is updated
+          
+          // Redirect to Home page (no alert - redirect indicates success)
+          window.location.href = '/';
+        },
+        error: function (xhr, textStatus, errorThrown) {
+          console.error('❌ API Error:', xhr, textStatus, errorThrown);
+          alert("❌ אירעה תקלה בסגירת הפעילות");
+        }
+      });
+    };
+
+
+    return (
+      <div className="activity-popup-overlay">
+        <div className="activity-popup-box">
+          <label id="end">סיום פעילות</label>
+          <button className="close-btn" onClick={handleClose}><i className="fa-solid fa-xmark fa-sm"></i></button>
+
+          {/* Header */}
+          <div className="headerDiv">
+          <div className="activity-popup-header">
+            <p>{activityData?.activityTitle || 'פעילות'}</p>
+          </div>
+
+          {activityData?.tag && <Tag tag={activityData.tag} />}
+         </div>
+          {/* Badges */}
+          <div className="sub_title d-flex justify-content-between align-items-center">
+            <p>{activityData?.dateTime || ''}</p>
+            {activityData?.allFiles && activityData.allFiles.length > 0 && (
+              <button className="download-btn" onClick={() => {
+                activityData.allFiles.forEach(file => {
+                  const link = document.createElement('a');
+                  link.href = file.url || '#';
+                  link.download = file.name;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                });
+              }}>
+                {isMobile ? "הורדת קבצים מצורפים" : "הורדת קבצים"}
+                <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15.6182 8.6665V12.6665C15.6182 12.9317 15.5128 13.1861 15.3253 13.3736C15.1377 13.5611 14.8834 13.6665 14.6182 13.6665H2.61816C2.35295 13.6665 2.09859 13.5611 1.91106 13.3736C1.72352 13.1861 1.61816 12.9317 1.61816 12.6665V8.6665C1.61816 8.40129 1.72352 8.14693 1.91106 7.9594C2.09859 7.77186 2.35295 7.6665 2.61816 7.6665H5.11816C5.25077 7.6665 5.37795 7.71918 5.47172 7.81295C5.56549 7.90672 5.61816 8.0339 5.61816 8.1665C5.61816 8.29911 5.56549 8.42629 5.47172 8.52006C5.37795 8.61383 5.25077 8.6665 5.11816 8.6665H2.61816V12.6665H14.6182V8.6665H12.1182C11.9856 8.6665 11.8584 8.61383 11.7646 8.52006C11.6708 8.42629 11.6182 8.29911 11.6182 8.1665C11.6182 8.0339 11.6708 7.90672 11.7646 7.81295C11.8584 7.71918 11.9856 7.6665 12.1182 7.6665H14.6182C14.8834 7.6665 15.1377 7.77186 15.3253 7.9594C15.5128 8.14693 15.6182 8.40129 15.6182 8.6665ZM8.26441 8.52025C8.31085 8.56674 8.36599 8.60362 8.42669 8.62878C8.48739 8.65395 8.55246 8.6669 8.61816 8.6669C8.68387 8.6669 8.74894 8.65395 8.80963 8.62878C8.87033 8.60362 8.92548 8.56674 8.97191 8.52025L11.9719 5.52025C12.0657 5.42643 12.1184 5.29919 12.1184 5.1665C12.1184 5.03382 12.0657 4.90657 11.9719 4.81275C11.8781 4.71893 11.7508 4.66623 11.6182 4.66623C11.4855 4.66623 11.3582 4.71893 11.2644 4.81275L9.11816 6.95963V1.6665C9.11816 1.5339 9.06549 1.40672 8.97172 1.31295C8.87795 1.21918 8.75077 1.1665 8.61816 1.1665C8.48556 1.1665 8.35838 1.21918 8.26461 1.31295C8.17084 1.40672 8.11816 1.5339 8.11816 1.6665V6.95963L5.97191 4.81275C5.87809 4.71893 5.75085 4.66623 5.61816 4.66623C5.48548 4.66623 5.35823 4.71893 5.26441 4.81275C5.17059 4.90657 5.11789 5.03382 5.11789 5.1665C5.11789 5.29919 5.17059 5.42643 5.26441 5.52025L8.26441 8.52025ZM13.1182 10.6665C13.1182 10.5182 13.0742 10.3732 12.9918 10.2498C12.9094 10.1265 12.7922 10.0304 12.6552 9.97359C12.5181 9.91683 12.3673 9.90198 12.2218 9.93091C12.0764 9.95985 11.9427 10.0313 11.8378 10.1362C11.7329 10.2411 11.6615 10.3747 11.6326 10.5202C11.6036 10.6657 11.6185 10.8165 11.6753 10.9535C11.732 11.0906 11.8281 11.2077 11.9515 11.2901C12.0748 11.3725 12.2198 11.4165 12.3682 11.4165C12.5671 11.4165 12.7578 11.3375 12.8985 11.1968C13.0391 11.0562 13.1182 10.8654 13.1182 10.6665Z" fill="white"/>
+                </svg>
+              </button>
+            )}
+            <div className="activity-popup-badges">
+              <span className="bg-gold">{activityData?.totalTrainees || 0} חניכים/ות</span>
+              <span className="bg-blue">{activityData?.presentCount || 0} הגיעו</span>
+              <span className="bg-green">{activityData?.attendanceRate || 0}% נוכחות</span>
+            </div>
+          </div>
+
+          {/* Inputs */}
+          <div className="activity-popup-inputs">
+            <div className="activity-popup-yesno">
+              <label><span className="req_field">*</span>האם העברת את הפעולה לפי המתוכנן?</label>
+              <div>
+                <button
+                  onClick={() => handleChange("performed", "yes")}
+                  className={`btn ${formData.performed === "yes" ? "active" : ""}`}
+                >
+                  כן
+                </button>
+                <button
+                  onClick={() => handleChange("performed", "no")}
+                  className={`btn ${formData.performed === "no" ? "active" : ""}`}
+                >
+                  לא
+                </button>
+              </div>
+            </div>
+
+            <label><span className="req_field">*</span>איך היה בכמה מילים?</label>
+            <input
+              type="text"
+              value={formData.howItWas}
+              onChange={(e) => handleChange("howItWas", e.target.value)}
+            />
+
+            <label><span className="req_field">*</span>מה החניכים/ות הכי אהבו?</label>
+            <input
+              type="text"
+              value={formData.whatWasMissing}
+              onChange={(e) => handleChange("whatWasMissing", e.target.value)}
+            />
+
+            <label><span className="req_field">*</span>מה עבד פחות טוב?</label>
+            <input
+              type="text"
+              value={formData.whatToImprove}
+              onChange={(e) => handleChange("whatToImprove", e.target.value)}
+            />
+          </div>
+
+          {/* File Upload */}
+          <div className="activity-popup-upload">
+            <label><span className="req_field">*</span>העלאת תמונות / מסמכים</label><br/>
+            {isMobile && <span className="upload-span2">ניתן להעלות קובץ בפורמט jpg, png, pdf, doc  עד 1mb</span>}
+            <div className="upload-box" 
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()} // allow drop
+              onDragEnter={(e) => e.preventDefault()}
+              onDragLeave={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = Array.from(e.dataTransfer.files);
+                handleFileChange({ target: { files } }); // reuse existing handler
+              }}>
+              <svg id="upload-svg" width="49" height="31" viewBox="0 0 49 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clip-path="url(#clip0_259_311)">
+                <path d="M21.6231 4.45427L5.52431 8.76792C4.41292 9.06572 3.75337 10.2081 4.05117 11.3195L7.82561 25.4059C8.12341 26.5173 9.26578 27.1768 10.3772 26.879L26.4759 22.5654C27.5873 22.2676 28.2469 21.1252 27.9491 20.0138L24.1746 5.92741C23.8768 4.81602 22.7345 4.15648 21.6231 4.45427Z" fill="#3482C4"/>
+                <path d="M10.8658 14.616C11.8383 14.3554 12.4154 13.3558 12.1548 12.3834C11.8942 11.4109 10.8946 10.8338 9.92218 11.0944C8.94972 11.3549 8.37261 12.3545 8.63318 13.327C8.89375 14.2994 9.89333 14.8765 10.8658 14.616Z" fill="#DB992B"/>
+                <path d="M26.6172 15.0433L27.9491 20.0138C28.0921 20.5475 28.0172 21.1161 27.7409 21.5946C27.4647 22.0732 27.0096 22.4223 26.4759 22.5653L10.3772 26.879C9.84346 27.022 9.27481 26.9471 8.7963 26.6709C8.31779 26.3946 7.96863 25.9395 7.82562 25.4058L7.05455 22.5282L10.7232 18.3099C10.8607 18.1455 11.0457 18.0274 11.2527 17.9719C11.4598 17.9165 11.679 17.9262 11.8803 17.9999L14.1749 18.9164L18.9196 12.8785C19.0582 12.7064 19.2479 12.5828 19.4614 12.5256C19.6748 12.4684 19.9009 12.4806 20.1069 12.5603L26.6172 15.0433Z" fill="#006455"/>
+                </g>
+                <g clip-path="url(#clip1_259_311)">
+                <path d="M41.3482 26.9038C41.1724 27.5602 40.7423 28.1203 40.1538 28.4602C39.5653 28.7998 38.8662 28.8916 38.2098 28.7157L23.1172 24.6717C22.4609 24.4958 21.9014 24.0668 21.5616 23.4784C21.2218 22.8898 21.1294 22.1897 21.3053 21.5333L25.8885 4.42866C26.0644 3.7722 26.4941 3.21304 27.0827 2.87323C27.6713 2.53342 28.3704 2.4408 29.0269 2.6167L39.3813 5.39117L39.6224 5.4689C40.1734 5.6773 40.6377 6.07107 40.9346 6.58585L44.4051 12.5941L44.4041 12.5938C44.7442 13.1819 44.8371 13.8809 44.6618 14.5373L41.3482 26.9038Z" fill="#3482C4" stroke="white" stroke-width="2"/>
+                <path d="M43.6954 14.2794L43.4824 15.0742L37.4454 13.4566C37.1785 13.3851 36.951 13.2105 36.8129 12.9713C36.6747 12.732 36.6373 12.4477 36.7088 12.1808L38.3264 6.1438L39.1213 6.35679C39.5213 6.46436 39.8623 6.72639 40.0692 7.08528L43.5385 13.0942C43.7458 13.4528 43.8023 13.8791 43.6954 14.2794Z" fill="#00466D"/>
+                <path d="M33.1515 13.3845L30.133 12.5756C29.8661 12.5041 29.6386 12.3296 29.5005 12.0903C29.3623 11.8511 29.3249 11.5667 29.3964 11.2999C29.4679 11.033 29.6425 10.8055 29.8818 10.6674C30.121 10.5292 30.4053 10.4918 30.6722 10.5633L33.6907 11.3721C33.9576 11.4436 34.1851 11.6182 34.3232 11.8575C34.4613 12.0967 34.4988 12.381 34.4273 12.6479C34.3558 12.9147 34.1812 13.1423 33.9419 13.2804C33.7027 13.4185 33.4184 13.456 33.1515 13.3845Z" fill="white"/>
+                <path d="M37.1042 18.7571L29.0549 16.6003C28.788 16.5288 28.5605 16.3542 28.4224 16.115C28.2842 15.8757 28.2468 15.5914 28.3183 15.3245C28.3898 15.0577 28.5644 14.8302 28.8036 14.692C29.0429 14.5539 29.3272 14.5165 29.5941 14.588L37.6434 16.7448C37.9103 16.8163 38.1378 16.9909 38.276 17.2301C38.4141 17.4694 38.4515 17.7537 38.38 18.0206C38.3085 18.2874 38.1339 18.5149 37.8947 18.6531C37.6554 18.7912 37.3711 18.8286 37.1042 18.7571Z" fill="white"/>
+                <path d="M36.0261 22.782L27.9767 20.6252C27.7099 20.5537 27.4824 20.3791 27.3442 20.1399C27.2061 19.9006 27.1687 19.6163 27.2402 19.3494C27.3117 19.0826 27.4862 18.8551 27.7255 18.7169C27.9648 18.5788 28.2491 18.5414 28.5159 18.6129L36.5653 20.7697C36.8322 20.8412 37.0597 21.0158 37.1978 21.255C37.336 21.4943 37.3734 21.7786 37.3019 22.0455C37.2304 22.3123 37.0558 22.5398 36.8166 22.678C36.5773 22.8161 36.293 22.8535 36.0261 22.782Z" fill="white"/>
+                </g>
+                <defs>
+                <clipPath id="clip0_259_311">
+                <rect width="25" height="25" fill="white" transform="translate(0.690674 6.82764) rotate(-15)"/>
+                </clipPath>
+                <clipPath id="clip1_259_311">
+                <rect width="25" height="25" fill="white" transform="translate(24.7795 0.357178) rotate(15)"/>
+                </clipPath>
+                </defs>
+            </svg>
+              {isMobile ? 
+                  <span className="upload-span1"> העלאת קבצים</span>
+                  :
+                  <div>
+                    <span>ניתן לגרור קבצים לכאן או <span className="upload-span1"> ללחוץ להעלאה </span></span>
+                    <br/>
+                    <span className="upload-span2">ניתן להעלות קובץ בפורמט jpg, png, pdf, doc  עד 1mb</span>
+                  </div>
+              }  
+            </div>
+            <input
+              ref={fileInputRef}
+              id="fileUpload"
+              type="file"
+              multiple
+              onChange={handleFileChange}
+            />
+            {formData.attachments.length > 0 && (
+              <div className="attachments">
+                {formData.attachments.map((file, idx) => {
+                  console.log("file: ", file);
+                  
+                  const isImage = file.type.startsWith("image/");
+                  const fileURL = URL.createObjectURL(file);
+                  
+                  const sizeKB = Math.round(file.size / 1024);  
+
+                  // const getFileIcon = (type) => {
+                  //   if (type.includes("pdf")) return "📕";
+                  //   if (type.includes("word") || file.name.endsWith(".docx")) return "📘";
+                  //   return "📄";
+                  // };
+
+                  const getFileIcon = (type) => {
+                  if (type.includes("pdf"))
+                    return <img src="\PDF.png" alt="PDF" width="20" />;
+                  if (type.includes("word"))
+                    return <img src="\WORD.png" alt="Word" width="20" />;
+                  };
+
+
+                  return (
+                    <div className="attachment-item" key={idx}>
+                      <button
+                        type="button"
+                        className="attachment-remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData((prev) => ({
+                            ...prev,
+                            attachments: prev.attachments.filter((_, i) => i !== idx),
+                          }));
+                        }}
+                      >
+                        ×
+                      </button>
+                      {isImage ? (
+                        <img className="attachment-img" src={fileURL} alt={file.name} />
+                      ) : (
+                        <div className="file-card">
+                          <div className="file-icon">{getFileIcon(file.type)}</div>
+                          <div className="file-info">
+                            <div className="file-name">
+                              {file.name.includes(".") 
+                              ? file.name.substring(0, file.name.lastIndexOf(".")) 
+                              : file.name}
+                            </div>
+                            <div className="file-meta">
+                              {file.name.split(".").pop().toUpperCase()} · {sizeKB} KB
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+          </div>
+
+          {/* Actions */}
+          <div className="activity-popup-actions">
+            <button className="btn-cancel" onClick={handleClose}>ביטול</button>
+            <button className="btn-submit" onClick={handleSubmit}>סיום פעילות ושמירה</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+</script>

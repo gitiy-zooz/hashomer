@@ -1,0 +1,657 @@
+.presence-card .new-card-icon {
+    background-color: #ffffff3d;
+    box-shadow: none
+}
+
+.card1 .card-details p {
+    font-weight: normal;
+    white-space: nowrap;
+    font-size: clamp(14px, 4vw, 2rem);
+}
+
+/* הוסף גם את זה (החלף .your-element בשם הקלאס שלך) */
+.activities-main-container::-webkit-scrollbar {
+    display: none;
+}
+
+.activities-main-container {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    margin-top: -20px;
+}
+
+.pageContent {
+    width: 75vw;
+}
+
+.statusCard.presence-card {
+    width: 50%;
+}
+
+.container,
+.container-fluid,
+.container-lg,
+.container-md,
+.container-sm,
+.container-xl,
+.container-xxl {
+    max-width: 100% !important;
+}
+
+
+
+/* שלושת הכרטיסים העליונים */
+.top-cards-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    justify-content: center;
+}
+
+/* הגריד הראשי */
+.main-content-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* עמודת הפעילויות */
+.activities-column {
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: none;
+    border: none;
+}
+
+.activities-controls {
+    margin-bottom: 24px;
+}
+
+/* השורה העליונה - כותרת וקונטרולים באותה שורה */
+.activities-top-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    align-items: baseline;
+}
+
+.activities-title {
+    font-size: medium;
+    font-weight: 900;
+    color: #333;
+    margin: 0;
+}
+
+/* השורה עם החיפוש והכפתור */
+.controls-row {
+    display: flex;
+    gap: 12px;
+}
+
+.search-input-container {
+    position: relative;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 40px 8px 15px;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    direction: rtl;
+    box-sizing: border-box;
+    background: white;
+    /* margin-top: 14px; */
+    /* text-align: justify; */
+}
+
+.search-icon {
+    position: absolute;
+    right: 8px;
+    top: 48%;
+    transform: translateY(-40%);
+    /* transform: translateX(35%); */
+    font-size: 1rem;
+    color: rgba(0, 70, 109, 1);
+    pointer-events: none;
+}
+
+.add-activity-button {
+    background: #52c7b8;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.add-activity-button:hover {
+    background: #47b3a4;
+}
+
+.page-layout {
+    display: flex;
+    height: 100vh;
+    /* min-height: 100vh; */
+}
+
+.main-content {
+    margin-right: 250px;
+    /* רוחב הסיידבר */
+    width: calc(100% - 250px);
+}
+
+
+
+/* רשימת הפעילויות - גלילה משמאל */
+.activities-list {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-left: 8px;
+    direction: ltr;
+    scrollbar-width: inherit;
+    padding-right: 10px
+}
+
+/* הסתרת גלילה ברירת מחדל והחלפה בגלילה מותאמת אישית */
+.activities-list::-webkit-scrollbar {
+    width: 2px;
+}
+
+.activities-list::-webkit-scrollbar-track {
+    background: #a8a8a8;
+    border-radius: 3px;
+    min-height: 15px;
+}
+
+.activities-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+
+}
+
+.activities-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.month-section {
+    margin-bottom: 32px;
+    direction: rtl;
+}
+
+.month-title {
+    font-size: 0.8rem;
+    font-weight: lighter;
+    color: #333;
+    margin: 0 0 16px 0;
+    text-align: right;
+    padding-right: 8px;
+}
+
+.activity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: rgba(236, 236, 229, 1);
+    border-radius: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+}
+
+/* .activity-row:hover {
+     background: #e3f2fd;
+     transform: translateY(-1px);
+     box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+     border-color: #2196F3;
+ } */
+
+.activity-info {
+    text-align: right;
+    flex: 1;
+}
+
+.activity-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.activity-time {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* התאריך בשמאל */
+.activity-date-badge {
+    margin-left: 16px;
+    order: -1;
+}
+
+.date-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 60px;
+}
+
+.day-name {
+    font-size: 0.8rem;
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 3px;
+    line-height: 1;
+    white-space: nowrap;
+
+}
+
+/* המספר ללא רקע - רגיל */
+.date-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #333;
+    background: transparent;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+/* רק היום הנוכחי עם עיגול כחול */
+.date-number.today {
+    background: #1560A0;
+    color: white;
+    border-color: #1560A0;
+}
+
+/* היום של היום הנוכחי יהיה כחול */
+.date-display:has(.date-number.today) .day-name {
+    color: #1560A0;
+    ;
+    font-weight: 600;
+}
+
+/* עמודת הלוח שנה - הסרת רקע ומיסגרת */
+.calendar-column {
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: none;
+    border: none;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.calendar-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 8px;
+}
+
+.calendar-section {
+    width: 100%;
+    background: #ECECE580;
+    border-radius: 20px;
+    padding: 25px;
+    /* box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); */
+}
+
+.nav-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+}
+
+
+.sidebar-section .activity-item {
+    background: none;
+    border: none;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 0;
+    display: flex;
+    gap: 0.7rem;
+    /* align-items: center; */
+}
+
+
+
+.sidebar-section .activity-title {
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 100%;
+    text-align: right;
+    color: #333333;
+}
+
+.sidebar-section {
+    background: #ECECE580;
+    border-radius: 20px;
+    height: 100%
+        /*345px*/
+    ;
+    padding: 25px;
+}
+
+.sidebar-section h3 {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333333;
+    margin-bottom: 20px;
+}
+
+.nav-btn:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.calendar-switch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.switch-label {
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+button.view-toggle-btn {
+    border-radius: 15px;
+    border-color: #1560A0;
+    color: #1560A0;
+    font-size: 14px;
+    /* background-color: white; */
+}
+
+.presence-card.card1 {
+    width: 50%;
+}
+
+a.phone-link {
+    display: flex;
+    gap: 12px;
+}
+
+.activities-main-container {
+    margin-left: auto;
+    margin-right: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Responsive */
+.containerPage {
+    height: auto;
+    /* width:75vw;*/
+    width: 87%;
+    height: 95vh;
+    overflow: hidden;
+}
+
+@media (max-width:1200px) {
+
+    .pageContent {
+        height: 100vh;
+        width: 65vw;
+    }
+
+    .main-content-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .containerPage {
+        /*width:60vw;*/
+        width: 94%;
+    }
+}
+
+/*768*/
+.containerPage {
+    /* width:70vw;*/
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.page-layout {
+    display: flex;
+    overflow: hidden;
+}
+
+.page-container {
+    width: 100%;
+}
+
+/*
+@media (max-width: 1024px) {
+
+    .main-content-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .top-cards-row {
+        flex-wrap: wrap;
+    }
+   .pageContent{
+
+    width:100%;
+}*/
+
+    
+    .controls-row {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    input:checked+.slider:before {
+        transform: translateX(27px);
+    }
+    
+    .slider:before {
+        padding-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .page-title{
+           margin-top: -20px;
+        }
+
+        .dashboard-container {
+            width: 100vw;
+        }
+        
+        .containerPage {
+            /* width:75vw;*/
+            width: 87%;
+            height: 95vh;
+            overflow: hidden;
+        }
+     
+        .presence-card.card1 {
+            width: 100%;
+        }
+     
+        .containerPage {
+            width: 85vw;
+        }
+     
+        .pageContent {
+            /* margin-right:0px; */
+            /* width:90vw; */
+            width: 100%;
+        }
+     
+        .top-cards-row {
+            flex-direction: column;
+        }
+     
+        .search-input-container {
+            min-width: 200px;
+        }
+     
+     
+        .controls-row {
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            display: contents;
+            height: 10px;
+        }
+     
+        .search-input {
+            width: 100%;
+            padding: 5px 40px 3px 15px;
+        }
+     
+        .activities-controls {
+            margin-bottom: 0px;
+            width: 100%;
+            padding: 15px 10px 0px;
+        }
+     
+        .main-content {
+            margin-right: 0;
+            width: 100%;
+        }
+     
+        .activities-title-btn-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+     
+        .container,
+        .container-fluid,
+        .container-lg,
+        .container-md,
+        .container-sm,
+        .container-xl,
+        .container-xxl {
+            --bs-gutter-x: 0em;
+        }
+     
+        .statusCard .card-details h3 {
+            margin: 0;
+            color: white;
+            font-weight: normal;
+            font-size: 16px;
+            white-space: wrap;
+        }
+     
+        /* הוספת פעילות במובייל - עולה למעלה */
+        .activities-main-container {
+            position: relative;
+            padding-top: 60px;
+        }
+     
+        .add-activity-btn {
+            position: absolute;
+            top: 38px;
+            left: 15px;
+        
+            padding: 1px 16px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+        
+            height: 30px;
+        }
+     
+        .activities-controls {
+            margin-bottom: 0px;
+        }
+     
+        .sidebar-section {
+            padding: 0px;
+        }
+        .activities-top-row {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+}
+     
+        .section-header {
+            display: flow;
+        
+            margin-bottom: 0.8rem;
+        
+        }
+     
+        .my-activities-mobile {
+            margin-bottom: 0.8rem;
+        }
+     
+        .activity-name {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: flex-start;
+            gap: 4px;
+        }
+     
+        .tag {
+            margin-right: 0rem;
+        }
+    }

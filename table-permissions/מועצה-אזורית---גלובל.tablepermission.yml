@@ -1,0 +1,19 @@
+adx_accountrelationship: 
+adx_append: true
+adx_appendto: true
+adx_childTablePermissions: []
+adx_contactrelationship: 
+adx_create: false
+adx_delete: false
+adx_entitylogicalname: zooz_regional_council
+adx_entityname: מועצה אזורית - גלובל
+adx_entitypermission_webrole:
+- 082eba6f-6a87-44b0-957f-749bd1442011
+- 6e08bc2a-b12a-47a6-ad4f-7088adf476fa
+adx_entitypermissionid: 49b7728c-7e59-47bf-9fec-619807684024
+adx_parententitypermission: 
+adx_parentrelationship: 
+adx_permissionfetchxml: 
+adx_read: true
+adx_scope: 756150000
+adx_write: false

@@ -1,0 +1,865 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.layout-flex-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0px;
+    min-height: auto;
+    padding: 8px;
+}
+
+.layout-flex-container {
+    padding: 0px;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.layout-flex-column {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 250px;
+}
+
+.right-sidebar {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.presence-card .new-card-icon {
+    background-color: #ffffff3d;
+    box-shadow: none
+}
+
+.card1 .card-details p {
+    font-weight: normal;
+    white-space: nowrap;
+    font-size: clamp(14px, 4vw, 2rem);
+}
+
+.statusCard.presence-card {
+    width: 50%;
+}
+
+/* שלושת הכרטיסים העליונים */
+.top-cards-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+    justify-content: center;
+}
+
+/* הגריד הראשי */
+.main-content-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* עמודת הפעילויות */
+.activities-column {
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: none;
+    border: none;
+}
+
+.activities-controls {
+    margin-bottom: 24px;
+}
+
+/* השורה העליונה - כותרת וקונטרולים באותה שורה */
+.activities-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.activities-title {
+    font-size: medium;
+    font-weight: 900;
+    color: #333;
+    margin: 0;
+}
+
+/* השורה עם החיפוש והכפתור */
+.controls-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.search-input-container {
+    position: relative;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 40px 8px 15px;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    direction: rtl;
+    box-sizing: border-box;
+    background: white;
+}
+
+.search-icon {
+    position: absolute;
+    right: 8px;
+    top: 48%;
+    transform: translateY(-40%);
+    font-size: 1rem;
+    color: rgba(0, 70, 109, 1);
+    pointer-events: none;
+}
+
+.add-activity-button {
+    background: #52c7b8;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.add-activity-button:hover {
+    background: #47b3a4;
+}
+
+button.all-activities-btn:hover {
+    background-color: white;
+}
+
+.page-layout {
+    min-height: 100vh;
+}
+
+.main-content::-webkit-scrollbar {
+    display: none;
+}
+
+.main-content {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    width: 75vw !important;
+    max-width: 75vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.contentDiv {
+    width: 75vw !important;
+    max-width: 75vw !important;
+    margin-right: auto !important;
+    margin-left: auto !important;
+}
+
+.activities-main-container {
+    padding: 40px;
+    width: 75vw !important;
+    max-width: 75vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* רשימת הפעילויות - גלילה משמאל */
+.activities-list {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-left: 8px;
+    direction: ltr;
+    scrollbar-width: inherit;
+    padding-right: 10px
+}
+
+.tag-dropdown-wrapper {
+    position: relative;
+}
+
+.tag-dropdown {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    padding: 8px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 180px;
+}
+
+.tag-dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+    text-align: right;
+    font-size: 14px;
+    color: #333;
+}
+
+.tag-dropdown-item:hover {
+    background: #f6f8fa;
+}
+
+/* הסתרת גלילה ברירת מחדל והחלפה בגלילה מותאמת אישית */
+.activities-list::-webkit-scrollbar {
+    width: 2px;
+}
+
+.activities-list::-webkit-scrollbar-track {
+    background: #a8a8a8;
+    border-radius: 3px;
+    min-height: 15px;
+}
+
+.activities-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.activities-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.month-section {
+    margin-bottom: 32px;
+    direction: rtl;
+}
+
+.month-title {
+    font-size: 0.8rem;
+    font-weight: lighter;
+    color: #333;
+    margin: 0 0 16px 0;
+    text-align: right;
+    padding-right: 8px;
+}
+
+.activity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: rgba(236, 236, 229, 1);
+    border-radius: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+}
+
+.activity-info {
+    text-align: right;
+    flex: 1;
+}
+
+.activity-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.activity-time {
+    font-size: 0.85rem;
+    color: #333;
+}
+
+/* התאריך בשמאל */
+.activity-date-badge {
+    margin-left: 16px;
+    order: -1;
+}
+
+.date-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 60px;
+}
+
+.day-name {
+    font-size: 0.8rem;
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 3px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* המספר ללא רקע - רגיל */
+.date-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #333;
+    background: transparent;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+/* רק היום הנוכחי עם עיגול כחול */
+.date-number.today {
+    background: #1560A0;
+    color: white;
+    border-color: #1560A0;
+}
+
+/* היום של היום הנוכחי יהיה כחול */
+.date-display:has(.date-number.today) .day-name {
+    color: #1560A0;
+    font-weight: 600;
+}
+
+/* עמודת הלוח שנה - הסרת רקע ומיסגרת */
+.calendar-column {
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: none;
+    border: none;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.calendar-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 8px;
+}
+
+.calendar-section {
+    width: 100%;
+    background: #ECECE580;
+    border-radius: 20px;
+    padding: 25px;
+}
+
+.nav-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.sidebar-section .activity-item {
+    background: none;
+    border: none;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 0;
+    display: flex;
+    gap: 0.7rem;
+}
+
+.sidebar-section .activity-title {
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 100%;
+    text-align: right;
+    color: #333333;
+}
+
+.sidebar-section {
+    background: #ECECE580;
+    border-radius: 20px;
+    height: 100%;
+    padding: 25px;
+}
+
+.sidebar-section h3 {
+    font-size: 18px;
+    font-weight: 500;
+    color: #333333;
+    margin-bottom: 20px;
+}
+
+.nav-btn:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.calendar-switch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.switch-label {
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+button.view-toggle-btn {
+    border-radius: 15px;
+    border-color: #1560A0;
+    color: #1560A0;
+    font-size: 14px;
+}
+
+.presence-card.card1 {
+    width: 50%;
+}
+
+.sidebar-section {
+    background: #ECECE580;
+    border-radius: 20px;
+    padding: 25px;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* כפתורי פעולה */
+.activity-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 16px;
+}
+
+.action-icon-btn {
+    height: 30px;
+    border: none;
+    background: rgba(236, 236, 229, 1);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #D4D4D4;
+}
+
+button.action-icon-btn.print-btn {
+    border-radius: 50px;
+    width: 30px;
+}
+
+button.action-icon-btn.copy-btn {
+    border-radius: 50px;
+    width: 30px;
+}
+
+.action-icon-btn:hover {
+    background: #f5f5f5;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.action-icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+span.btn-text {
+    white-space: nowrap;
+    font-size: 0.85rem;
+    color: #333;
+    font-weight: 500;
+}
+
+button.action-icon-btn.download-btn {
+    width: auto;
+}
+
+.section-top-row {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-and-filter {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+button.all-activities-btn {
+    background-color: white;
+    color: #333;
+    border-radius: 25px;
+    display: flex;
+    justify-content: space-between;
+    gap: 55px;
+}
+
+span.time-label {
+    font-size: 0.9rem;
+    color: #333;
+    margin: 5px;
+}
+
+/* מובייל - שורה 1 */
+.section-top-row-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* מובייל - שורה 2 */
+.search-row-mobile {
+    margin-bottom: 16px;
+}
+
+.search-row-mobile .search-input-container {
+    width: 100%;
+}
+
+.search-row-mobile .search-input {
+    width: 100%;
+}
+
+/* כפתור 3 נקודות */
+.more-options-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+}
+
+/* תפריט מובייל */
+.activity-row {
+    position: relative;
+}
+
+.more-menu-wrap {
+    position: relative;
+    order: 3;
+}
+
+.mobile-actions-menu {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    padding: 8px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 180px;
+}
+
+.mobile-actions-menu .menu-item {
+    background: transparent;
+    border: 0;
+    text-align: right;
+    padding: 10px 12px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-actions-menu .menu-item:hover {
+    background: #f6f8fa;
+}
+
+.mobile-actions-menu .menu-item svg {
+    flex-shrink: 0;
+}
+
+.container.container-full {
+    max-width: 100% !important;
+}
+
+span.activity-location-mobile {
+    font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .main-content-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .top-cards-row {
+        flex-wrap: wrap;
+    }
+
+    .activities-top-row {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+
+    .controls-row {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+/* מובייל */
+@media (max-width: 768px) {
+    span.time-label {
+        font-size: 0.75rem;
+    }
+
+    h1.page-title {
+        font-size: clamp(24px, 2vw, 30px);
+    }
+
+    /* הצג 3 נקודות */
+    .more-options-btn {
+        display: flex;
+    }
+
+    /* הסתר כפתורים */
+    .activity-actions {
+        display: none !important;
+    }
+
+    button.all-activities-btn {
+        height: 25%;
+        white-space: nowrap;
+        gap: 0px;
+    }
+
+    .activity-actions {
+        gap: 6px;
+        margin-left: 8px;
+    }
+
+    .action-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .action-icon-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .presence-card.card1 {
+        width: 100%;
+    }
+
+    .top-cards-row {
+        flex-direction: column;
+    }
+
+    .search-input-container {
+        min-width: 200px;
+    }
+
+    .controls-row {
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        display: contents;
+        height: 10px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 5px 40px 3px 15px;
+    }
+
+    .activities-controls {
+        margin-bottom: 0px;
+        width: 100%;
+        padding: 15px 10px 0px;
+    }
+
+    /* תיקון עיקרי: שינוי רוחב למובייל */
+    .main-content {
+        margin-right: auto !important;
+        margin-left: auto !important;
+        width: 90vw !important;
+        max-width: 90vw !important;
+    }
+
+    .contentDiv {
+        width: 90vw !important;
+        max-width: 90vw !important;
+        margin-right: auto !important;
+        margin-left: auto !important;
+    }
+
+    .activities-title-btn-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .activity-name {
+        gap: 6px;
+    }
+
+    .activity-name {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        gap: 6px;
+        margin-bottom: 0px;
+    }
+
+    span.tag {
+        margin-right: -0.5rem;
+    }
+
+    button.more-options-btn {
+        order: 2;
+    }
+
+    .activity-time-wrapper {
+        margin-right: -0.3rem;
+    }
+
+    .container,
+    .container-fluid,
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl,
+    .container-xxl {
+        --bs-gutter-x: 0em;
+    }
+
+    .statusCard .card-details h3 {
+        margin: 0;
+        color: white;
+        font-weight: normal;
+        font-size: 16px;
+        white-space: wrap;
+    }
+
+    /* הוספת פעילות במובייל - עולה למעלה */
+    .activities-main-container {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        width: 90vw !important;
+        max-width: 90vw !important;
+        position: relative;
+        padding-top: 60px;
+        padding: 0px;
+    }
+
+    .add-activity-btn {
+        position: absolute;
+        top: 38px;
+        left: 15px;
+        padding: 1px 16px;
+        border-radius: 18px;
+        font-size: 0.85rem;
+        height: 30px;
+    }
+
+    .activities-controls {
+        margin-bottom: 0px;
+    }
+
+    .sidebar-section {
+        padding: 10px;
+        min-height: 500px;
+    }
+
+    .section-header {
+        display: flow;
+        margin-bottom: 0.8rem;
+    }
+
+    .my-activities-mobile {
+        margin-bottom: 0.8rem;
+    }
+
+    .section-top-row-mobile {
+        margin-bottom: 3px;
+    }
+
+    .activity-info {
+        order: 2;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    span.activity-time {
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    span.activity-location-mobile {
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .date-display {
+        min-width: 0px;
+    }
+}

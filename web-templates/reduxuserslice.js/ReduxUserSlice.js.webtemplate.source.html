@@ -1,0 +1,322 @@
+<!-- chaya 26/01 23:17 -->
+{% fetchxml role_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
+  <entity name="zooz_role">
+    <attribute name="zooz_roleid" />
+    <attribute name="zooz_name" />
+    <filter type="or">
+      <condition attribute="zooz_name" operator="eq" value="מדריך" />
+      <condition attribute="zooz_name" operator="eq" value="רכז" />
+      <condition attribute="zooz_name" operator="eq" value="חניך" />
+    </filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+
+<script id="ReduxUserSlice.js">
+
+  window.COORDINATOR_GUID = "";
+  window.LEADER_GUID = "";
+  window.STUDENT_GUID = "";
+
+  {% for result in role_query.results.entities %}
+  {% if result.zooz_name == 'רכז' %}
+  window.COORDINATOR_GUID = "{{ result.zooz_roleid }}";
+  {% elsif result.zooz_name == 'מדריך' %}
+  window.LEADER_GUID = "{{ result.zooz_roleid }}";
+  {% elsif result.zooz_name == 'חניך' %}
+  window.STUDENT_GUID = "{{ result.zooz_roleid }}";
+  {% endif %}
+  {% endfor %}
+
+  // ייבוא תפקידי משתמש
+  const fetchUserRoles = createAsyncThunk(
+    "user/fetchUserRoles",
+    async (_, { rejectWithValue }) => {
+      return new Promise((resolve, reject) => {
+        const contactId = "{{user.id}}";
+
+        const fetchXML =
+          `<fetch>
+          	<entity name="zooz_role_layer">
+          		<attribute name="zooz_role_layerid" />
+          		<attribute name="zooz_contact" />
+          		<attribute name="zooz_contactname" />
+          		<attribute name="zooz_stakeholder" />
+          		<attribute name="zooz_stakeholdername" />
+          		<attribute name="zooz_layer" />
+          		<attribute name="zooz_layername" />
+          		<attribute name="zooz_name" />
+              <filter type="and">
+                <condition attribute="zooz_contact" operator="eq" value="{${contactId}}" uitype="contact"/>
+              </filter>
+              <link-entity name="zooz_stakeholders" alias="role" link-type="inner" from="zooz_stakeholdersid" to="zooz_stakeholder">
+                <attribute name="zooz_role"/>
+                <filter type="or">
+                  <condition attribute="zooz_role" operator="eq" value="{${window.COORDINATOR_GUID}}" uitype="zooz_role"/>
+                  <condition attribute="zooz_role" operator="eq" value="{${window.LEADER_GUID}}" uitype="zooz_role"/>
+                </filter>
+              </link-entity>
+              <link-entity name="zooz_group" alias="layer" link-type="outer" from="zooz_groupid" to="zooz_layer">
+                <attribute name="zooz_name"/>
+                <attribute name="zooz_groupid"/>
+                <link-entity name="zooz_kn" alias="kn" link-type="outer" from="zooz_knid" to="zooz_kn">
+                  <attribute name="zooz_name"/>
+                  <attribute name="zooz_knid"/>
+                </link-entity>
+                <link-entity name="zooz_group_layer" alias="group_layer" link-type="outer" from="zooz_layer" to="zooz_groupid">
+                  <attribute name="zooz_name"/>
+                  <attribute name="zooz_group_layer"/>
+                </link-entity>
+              </link-entity>
+            </entity>
+          </fetch>`
+
+        const encodedFetch = encodeURIComponent(CleanFetchForWebAPI(fetchXML));
+
+        webapi.safeAjax({
+          type: "GET",
+          url: `/_api/zooz_role_layers?fetchXml=${encodedFetch}`,
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: function (data) {
+
+            const roles = {};
+            let hasCoordinator = false;
+            let hasLeader = false;
+            const knIds = new Set();
+
+            // Step 1: Process roles and collect KN IDs
+            console.log('🔑 fetchUserRoles raw data:', data.value);
+            console.log('🔑 COORDINATOR_GUID:', window.COORDINATOR_GUID);
+            console.log('🔑 LEADER_GUID:', window.LEADER_GUID);
+            
+            data.value.forEach(item => {
+              const knId = item['kn.zooz_knid'];
+              if (!knId) return;
+
+              knIds.add(knId);
+
+              if (!roles[knId]) {
+                roles[knId] = {
+                  id: knId,
+                  name: item['kn.zooz_name'],
+                  areaId: null,
+                  area: null,
+                  regionalCouncilId: null,
+                  regionalCouncil: null,
+                  district: null,
+                  districtId: null,
+                  rolesOptions: [],
+                };
+              }
+
+              const roleId = item['role.zooz_role'];
+              const layerObj = {
+                roleId: roleId,
+                roleLabel: roleId === window.COORDINATOR_GUID ? "coordinator" : "leader",
+                layerId: item['zooz_role_layerid'],
+                layerName: item['layer.zooz_name'],
+                groupId: item["group_layer.zooz_group_layer"],
+                groupName: item["group_layer.zooz_group_layer@OData.Community.Display.V1.FormattedValue"]
+              };
+
+              console.log('🔑 Processing role:', { roleId, roleLabel: layerObj.roleLabel, isCoordinator: roleId === window.COORDINATOR_GUID, isLeader: roleId === window.LEADER_GUID });
+
+              roles[knId].rolesOptions.push(layerObj);
+
+              if (roleId === window.COORDINATOR_GUID) {
+                hasCoordinator = true;
+              } else if (roleId === window.LEADER_GUID) {
+                hasLeader = true;
+              }
+            });
+            
+            console.log('🔑 Final flags:', { hasCoordinator, hasLeader });
+
+            // Step 2: Fetch KN details with area, district, regional council
+            if (knIds.size > 0) {
+              const knIdsArray = Array.from(knIds);
+              const knFilter = knIdsArray.map(id => `zooz_knid eq ${id}`).join(' or ');
+
+              webapi.safeAjax({
+                type: "GET",
+                url: `/_api/zooz_kns?$filter=${knFilter}&$select=zooz_knid,_zooz_area_value,_zooz_district_value,_zooz_regional_council_value`,
+                contentType: "application/json",
+                headers: {
+                  "Prefer": "odata.include-annotations=*"
+                },
+                success: function (knData) {
+                  // Merge KN details into roles
+                  knData.value.forEach(kn => {
+                    const knId = kn.zooz_knid;
+                    if (roles[knId]) {
+                      roles[knId].areaId = kn._zooz_area_value;
+                      roles[knId].area = kn["_zooz_area_value@OData.Community.Display.V1.FormattedValue"];
+                      roles[knId].regionalCouncilId = kn._zooz_regional_council_value;
+                      roles[knId].regionalCouncil = kn["_zooz_regional_council_value@OData.Community.Display.V1.FormattedValue"];
+                      roles[knId].districtId = kn._zooz_district_value;
+                      roles[knId].district = kn["_zooz_district_value@OData.Community.Display.V1.FormattedValue"];
+                    }
+                  });
+
+                  resolve({
+                    roles,
+                    userRoles: {
+                      coordinator: hasCoordinator,
+                      leader: hasLeader
+                    }
+                  });
+                },
+                error: function (xhr) {
+                  console.warn("Failed to fetch KN details, continuing without area/district/regional council data", xhr);
+                  // Still resolve with roles data even if KN fetch fails
+                  resolve({
+                    roles,
+                    userRoles: {
+                      coordinator: hasCoordinator,
+                      leader: hasLeader
+                    }
+                  });
+                }
+              });
+            } else {
+              // No KN IDs found, resolve immediately
+              resolve({
+                roles,
+                userRoles: {
+                  coordinator: hasCoordinator,
+                  leader: hasLeader
+                }
+              });
+            }
+          },
+          error: function (xhr) {
+            reject(xhr);
+          }
+        });
+      });
+    }
+  );
+
+
+  const initialState = {
+    userId: "{{user.id}}",
+    fullName: "{{user.fullname}}",
+    firstName: "{{user.firstname}}",
+    roles: {},
+    userRoles: {
+      coordinator: false,
+      leader: false
+    },
+    currentView: null, // 'coordinator' | 'instructor' | null
+    currentKnId: "",
+    currentRole: "",
+    currentGroupId: "",
+    currentPageView: 'trainees', // 'trainees' | 'instructors' - for Campers2 page view
+
+    loading: {
+      global: false,
+      roles: false,
+    },
+    error: {},
+  }
+
+  const userSlice = createSlice({
+    name: "user",
+    initialState,
+    reducers: {
+      clearUser: (state) => {
+        state.user = null;
+        state.loading = false;
+        state.error = null;
+      },
+      setCurrentRole: (state, action) => {
+        const newRole = action.payload; // 'coordinator' | 'leader'
+        state.currentRole = newRole;
+
+        const currentKnId = state.currentKnId;
+        const roles = state.roles;
+
+        let foundInCurrent = false;
+
+        // Check if user has the selected role in the current KN
+        if (currentKnId && roles[currentKnId] && roles[currentKnId].rolesOptions) {
+          const hasRole = roles[currentKnId].rolesOptions.some(r => r.roleLabel === newRole);
+          if (hasRole) {
+            foundInCurrent = true;
+            // If the role is guide (leader), automatically assign the first group
+            if (newRole === 'leader') {
+              const option = roles[currentKnId].rolesOptions.find(r => r.roleLabel === newRole);
+              if (option) state.currentGroupId = option.groupId;
+            }
+          }
+        }
+
+        // If not found in current KN, find the first KN where they have that role
+        if (!foundInCurrent) {
+          const knIdWithRole = Object.keys(roles).find(knId =>
+            roles[knId].rolesOptions && roles[knId].rolesOptions.some(r => r.roleLabel === newRole)
+          );
+
+          if (knIdWithRole) {
+            state.currentKnId = knIdWithRole;
+            // Select group automatically if leader
+            if (newRole === 'leader') {
+              const option = roles[knIdWithRole].rolesOptions.find(r => r.roleLabel === newRole);
+              if (option) state.currentGroupId = option.groupId;
+            }
+          }
+        }
+
+        // Sync currentPageView: if switching to leader and currently on instructors view, switch to trainees
+        if (newRole === 'leader' && state.currentPageView === 'instructors') {
+          state.currentPageView = 'trainees';
+        }
+      },
+      setCurrentView: (state, action) => {
+        // action.payload: 'coordinator' | 'instructor'
+        state.currentView = action.payload;
+        state.currentRole = action.payload === 'coordinator' ? 'coordinator' : 'leader';
+      },
+      setCurrentKnId: (state, action) => {
+        state.currentKnId = action.payload;
+      },
+      setCurrentGroupId: (state, action) => {
+        state.currentGroupId = action.payload;
+      },
+      setCurrentPageView: (state, action) => {
+        // action.payload: 'trainees' | 'instructors'
+        state.currentPageView = action.payload;
+      },
+    },
+    extraReducers: (builder) => {
+      builder
+        .addCase(fetchUserRoles.pending, (state) => {
+          state.loading.roles = true;
+          state.error = {};
+        })
+        .addCase(fetchUserRoles.fulfilled, (state, action) => {
+          state.loading.roles = false;
+          state.roles = action.payload.roles;
+          state.userRoles = action.payload.userRoles;
+
+          const knId = Object.keys(action.payload.roles)[0];
+          const option = action.payload.roles[knId]?.rolesOptions[0];
+
+          state.currentKnId = knId;
+          state.currentRole = option?.roleLabel || '';
+          debugger
+          state.currentGroupId = option?.roleLabel === "leader" ? option.groupId : "";
+        })
+        .addCase(fetchUserRoles.rejected, (state, action) => {
+          state.loading.roles = false;
+          state.error.title = "Failed";
+          state.error.message = action.payload || "Failed to load user roles";
+        });
+    }
+  });
+
+</script>

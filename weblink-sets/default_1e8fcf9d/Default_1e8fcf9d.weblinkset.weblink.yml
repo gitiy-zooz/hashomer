@@ -1,0 +1,115 @@
+- adx_displayorder: 12
+  adx_name: Activities-histoty
+  adx_pageid: 24de5d16-b592-2ba0-6735-537b11d02c1e
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 0350ea51-6d39-41f1-9f8c-953cc2aef190
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 6
+  adx_filecontent: 
+  adx_name: Campers
+  adx_pageid: 60abeb45-ca3a-3f63-adc7-e5e1f8aa4512
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 228c9830-92aa-419a-a14a-25f00ef2fa22
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 11
+  adx_name: Campers
+  adx_pageid: d6e66ce2-dfca-0ce2-db97-c69af2400f87
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 4692f927-28d7-4538-a822-14098c52466b
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 5
+  adx_filecontent: 
+  adx_name: MyStudents
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 4ef4d1cf-4c71-4853-afa8-b32591756b50
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 3
+  adx_filecontent: 
+  adx_name: Presence
+  adx_pageid: 3e4c9b5a-adcc-95cb-d98c-a184dad11fff
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 52f650e1-6de8-432e-8ae2-9caf1f948e48
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 9
+  adx_filecontent: 
+  adx_name: Attendance
+  adx_pageid: a4d09a67-202f-3f3a-2473-dd953b5ac9bd
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 59dd50dc-c025-411d-9221-f42de6961f17
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 14
+  adx_name: profile
+  adx_pageid: afa9d188-42c4-f011-bbd3-7c1e52767e6e
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 6904aeb2-6940-41a5-85f4-6c1df9e97449
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 17
+  adx_name: ResetPasswordPage
+  adx_pageid: e9e9734e-1df0-ed51-a9bb-1cefa0bf69d9
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 7fea63ee-9da6-4544-a9e3-b79fea621015
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 19
+  adx_name: signin-openid_1
+  adx_pageid: 20e752a0-1d4a-06d8-2908-514d9c9ddf4d
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 88cc534a-dfe5-45e5-b915-36f194dd4254
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 13
+  adx_name: ActivitiesHistory-detail
+  adx_pageid: 9f53d8ad-4c33-da14-92d6-57d34812dd84
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: 8fbb16ff-e9c7-43bf-a260-12bc7befcc4c
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 10
+  adx_name: Sidebar Navigation
+  adx_pageid: 8f4a2c1c-2625-2b9c-5a90-6b543c5c2742
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: a3e4c818-f605-4fd3-8284-914d1ce733a5
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 18
+  adx_name: Campers2
+  adx_pageid: 9e4726c1-e3a6-badf-673c-f3f6aca9de6b
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: b5f0eda8-5e4f-475e-b5b5-67ae2d617f4b
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 16
+  adx_name: login
+  adx_pageid: e6afdcb9-77ac-7aa4-a477-726d4cdefd1f
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: c7865349-5225-4226-be9f-9a6585499f93
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 2
+  adx_filecontent: 
+  adx_name: files
+  adx_pageid: 6dba918f-e0c3-ad9f-5327-5adb51b71f46
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: cda9c4bc-2fd9-4b92-824a-6983094f0a4b
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 4
+  adx_filecontent: 
+  adx_name: Popup Insights
+  adx_pageid: 22efa1c0-fdaa-c6d4-dab7-17b4f8018af3
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: ddee4d10-8050-45bd-9018-785a7e1afe38
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 8
+  adx_filecontent: 
+  adx_name: Activity-detail
+  adx_pageid: 0427c671-92c5-a16e-7382-61c1b89e06ad
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: e2834f4d-a561-422e-8f61-a63524122f4c
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 15
+  adx_name: Activity
+  adx_pageid: 140c0bb1-329c-f011-bbd3-000d3ade22ff
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: eb34b617-4557-4de5-9518-5e4e38203fd8
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf
+- adx_displayorder: 1
+  adx_filecontent: 
+  adx_name: Home
+  adx_pageid: ca3caabe-8607-48e9-91be-67fb6c0a9fd8
+  adx_publishingstateid: 3acabc36-afd0-432d-9e1f-c118b490f52b
+  adx_weblinkid: f0c38ca1-7ddd-4dec-9b8a-acf4e8afe378
+  adx_weblinksetid: f27adb54-1375-4f16-a091-54e44c370cbf

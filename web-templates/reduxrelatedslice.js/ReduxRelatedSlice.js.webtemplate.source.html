@@ -1,0 +1,394 @@
+<!-- chaya 26/01 -->
+<script id="ReduxRelatedSlice.js">
+
+  // ייבוא קבוצות משתמש
+  const fetchUserGroupsWithMembers = createAsyncThunk(
+    "related/fetchUserGroupsWithMembers",
+    async (userGroups, { rejectWithValue }) => {
+      return new Promise((resolve, reject) => {
+        const contactId = "{{user.id}}";
+
+        const groupConditions = userGroups.map(groupId =>
+          `<condition attribute="zooz_youth_groupid" operator="eq" value="{${groupId}}" uitype="zooz_role"/>`
+        ).join('');
+
+        const fetchXML =
+          `<fetch mapping="logical">
+              <entity name="zooz_youth_group">
+                <attribute name="zooz_name"/>
+                  <attribute name="zooz_youth_groupid"/>
+                  <filter type="or">
+                     ${groupConditions}
+                  </filter>
+                  <link-entity name="zooz_contact_group" alias="contact_group" link-type="inner" from="zooz_group" to="zooz_youth_groupid">
+                      <attribute name="zooz_name"/> 
+                      <filter type="and">
+                          <condition attribute="zooz_contact" operator="ne" value="{${contactId}}" uitype="contact"/>
+                      </filter>
+                      <link-entity name="zooz_stakeholders" alias="stakeholders" link-type="outer" from="zooz_stakeholdersid" to="zooz_stakeholders">
+                        <attribute name="zooz_name"/>
+                        <attribute name="zooz_stakeholdersid"/>
+                        <attribute name="zooz_role"/>
+                        <filter type="or">
+                            <condition attribute="zooz_role" operator="eq" value="{${window.STUDENT_GUID}}" uitype="zooz_role"/>
+                            <condition attribute="zooz_role" operator="eq" value="{${window.LEADER_GUID}}" uitype="zooz_role"/>
+                        </filter>
+                      </link-entity>
+                  </link-entity>
+              </entity>
+          </fetch>`
+
+        const encodedFetch = encodeURIComponent(CleanFetchForWebAPI(fetchXML));
+
+        webapi.safeAjax({
+          type: "GET",
+          url: `/_api/zooz_youth_groups?fetchXml=${encodedFetch}`,
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: function (data) {
+            const groups = {};
+
+            data.value.forEach(item => {
+
+              const groupId = item['zooz_youth_groupid'];
+              if (!groupId) return;
+
+              if (!groups[groupId]) {
+                groups[groupId] = {
+                  id: groupId,
+                  name: item['zooz_name'],
+                  leaders: [],
+                  students: []
+                };
+              }
+
+              const stakeholderId = item['stakeholders.zooz_stakeholdersid'];
+              if (!stakeholderId) return;
+
+              const roleId = item['stakeholders.zooz_role'];
+              const member = {
+                id: stakeholderId,
+                name: item['stakeholders.zooz_name']
+              };
+
+              if (roleId === window.LEADER_GUID) {
+                groups[groupId].leaders.push(member);
+              } else if (roleId === window.STUDENT_GUID) {
+                groups[groupId].students.push(member);
+              }
+            });
+            resolve(groups);
+          },
+          error: function (xhr) {
+            reject(xhr);
+          }
+        });
+
+      });
+    }
+  );
+
+
+  // Fetch students by group ID
+  const fetchGroupStudents = createAsyncThunk(
+    "related/fetchGroupStudents",
+    async (arg, { rejectWithValue }) => {
+      return new Promise((resolve, reject) => {
+        const groupId = typeof arg === 'object' ? arg.groupId : arg;
+        const countOnly = typeof arg === 'object' ? arg.countOnly : false;
+
+        if (!groupId) {
+          reject("Group ID is required");
+          return;
+        }
+
+        let fetchXML;
+        if (countOnly) {
+          fetchXML = `
+            <fetch aggregate="true">
+              <entity name="zooz_contact_group">
+                <attribute name="zooz_contact_groupid" alias="studentCount" aggregate="count" />
+                <filter>
+                  <condition attribute="zooz_group" operator="eq" value="{${groupId}}" />
+                </filter>
+                <link-entity name="zooz_stakeholders" from="zooz_stakeholdersid" to="zooz_stakeholders" link-type="inner">
+                  <filter>
+                    <condition attribute="zooz_role" operator="eq" value="{${window.STUDENT_GUID}}" uitype="zooz_role"/>
+                  </filter>
+                  </link-entity>
+                  <link-entity name="contact" from="contactid" to="zooz_contact" link-type="inner" />
+              </entity>
+            </fetch>`;
+        } else {
+          fetchXML = `
+          <fetch mapping="logical">
+            <entity name="zooz_contact_group">
+              <attribute name="zooz_contact_groupid" />
+              <attribute name="zooz_contact" />
+              <filter type="and">
+                <condition attribute="zooz_group" operator="eq" value="{${groupId}}" uitype="zooz_youth_group" />
+              </filter>
+              <link-entity name="zooz_stakeholders" alias="stakeholders" from="zooz_stakeholdersid" to="zooz_stakeholders" link-type="inner">
+                <filter type="and">
+                  <condition attribute="zooz_role" operator="eq" value="{${window.STUDENT_GUID}}" uitype="zooz_role"/>
+                </filter>
+              </link-entity>
+              <link-entity name="zooz_youth_group" alias="aa" link-type="inner" from="zooz_youth_groupid" to="zooz_group">
+                  <link-entity name="zooz_group_layer" alias="ab" link-type="inner" from="zooz_group_layer" to="zooz_youth_groupid">
+                    <attribute name="zooz_layer" />
+                  </link-entity>
+              </link-entity>
+              <link-entity name="contact" alias="contact" from="contactid" to="zooz_contact" link-type="outer">
+                <attribute name="contactid" />
+                <attribute name="fullname" />
+                <attribute name="emailaddress1" />
+                <attribute name="mobilephone" />
+                <attribute name="sho_fr_age" />
+              </link-entity>
+            </entity>
+          </fetch>`;
+        }
+
+
+        const encodedFetch = encodeURIComponent(CleanFetchForWebAPI(fetchXML));
+
+        webapi.safeAjax({
+          type: "GET",
+          url: `/_api/zooz_contact_groups?fetchXml=${encodedFetch}`,
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: function (data) {
+            if (countOnly) {
+              const count = (data && data.value && data.value[0] && data.value[0].studentCount) || 0;
+              resolve(count);
+            } else {
+              const students = [];
+              if (data && data.value) {
+                data.value.forEach(item => {
+                  const contactId = item["contact.contactid"];
+                  if (contactId) {
+                    students.push({
+                      id: contactId,
+                      name: item["contact.fullname"],
+                      email: item["contact.emailaddress1"],
+                      phone: item["contact.mobilephone"],
+                      age:["contact.sho_fr_age"]
+                    });
+                  }
+                });
+              }
+              resolve(students);
+            }
+          },
+          error: function (xhr) {
+
+            console.error("Error fetching group students", xhr);
+            reject(xhr);
+          }
+        });
+      });
+    }
+  );
+
+
+
+  // ייבוא אנשי קשר משתמש
+  const fetchLeaders = createAsyncThunk(
+    "related/fetchLeaders",
+    async (_, { rejectWithValue, dispatch }) => {
+      return new Promise((resolve, reject) => {
+        const contactId = "{{user.id}}";
+
+        const fetchXML =
+          `<fetch>
+          	<entity name="zooz_role_layer">
+          		<attribute name="zooz_role_layerid" />
+          		<attribute name="zooz_contact" />
+          		<attribute name="zooz_contactname" />
+          		<attribute name="zooz_stakeholder" />
+          		<attribute name="zooz_stakeholdername" />
+          		<attribute name="zooz_layer" />
+          		<attribute name="zooz_layername" />
+          		<attribute name="zooz_name" />
+              <filter type="and">
+                    <condition attribute="zooz_contact" operator="ne" value="{${contactId}}" uitype="contact"/>
+              </filter>
+              <link-entity name="zooz_stakeholders" alias="role" link-type="inner" from="zooz_stakeholdersid" to="zooz_stakeholder">
+                <attribute name="zooz_role"/>
+                <filter type="and">
+                    <condition attribute="zooz_role" operator="eq" value="{${window.LEADER_GUID}}" uitype="zooz_role"/>
+                </filter>
+                <link-entity name="zooz_contact_group" alias="contact_group" link-type="inner" from="zooz_stakeholders" to="zooz_stakeholdersid">
+                    <attribute name="zooz_group"/>
+                </link-entity>
+              </link-entity>
+
+              <link-entity name="zooz_group" alias="layer" link-type="outer" from="zooz_groupid" to="zooz_layer">
+                <attribute name="zooz_name"/>
+                <attribute name="zooz_groupid"/>
+                <attribute name="zooz_youth_group"/>
+
+                <link-entity name="zooz_kn" alias="kn" link-type="outer" from="zooz_knid" to="zooz_kn">
+                    <attribute name="zooz_name"/>
+                    <attribute name="zooz_knid"/>
+                </link-entity>
+              </link-entity>
+          	</entity>
+          </fetch>`
+
+
+        const encodedFetch = encodeURIComponent(CleanFetchForWebAPI(fetchXML));
+
+        webapi.safeAjax({
+          type: "GET",
+          url: `/_api/zooz_role_layers?fetchXml=${encodedFetch}`,
+          contentType: "application/json",
+          headers: {
+            "Prefer": "odata.include-annotations=*"
+          },
+          success: async function (data) {
+            const mappedData = {};
+            const layerIds = new Set();
+
+            data.value.forEach(item => {
+              const knId = item['kn.zooz_knid'];
+
+              if (!knId) return;
+
+              if (!mappedData[knId]) {
+                mappedData[knId] = [];
+              }
+
+              const layerId = item['_zooz_layer_value'];
+              if (layerId) layerIds.add(layerId);
+
+              const contactGroupId = item['contact_group.zooz_group'];
+
+              mappedData[knId].push({
+                leaderId: item['_zooz_contact_value'],
+                leaderName: item["_zooz_contact_value@OData.Community.Display.V1.FormattedValue"],
+                layerId: layerId,
+                layerName: item['_zooz_layer_value@OData.Community.Display.V1.FormattedValue'],
+                youthGroupName: item['layer.zooz_youth_group@OData.Community.Display.V1.FormattedValue'] || item['layer.zooz_youth_group'] || item['_layer_zooz_youth_group_value@OData.Community.Display.V1.FormattedValue'] || item['_layer_zooz_youth_group_value'],
+                contactGroupId: contactGroupId,
+                totalStudents: 0
+              });
+            });
+
+            const countPromises = [];
+            Object.values(mappedData).forEach(leaders => {
+              leaders.forEach(leader => {
+                if (leader.contactGroupId) {
+                  const promise = dispatch(fetchGroupStudents({ groupId: leader.contactGroupId, countOnly: true }))
+                    .unwrap()
+                    .then(count => {
+                      leader.totalStudents = count;
+                    })
+                    .catch(err => {
+                      console.error("Error fetching count for group " + leader.contactGroupId, err);
+                      leader.totalStudents = 0;
+                    });
+                  countPromises.push(promise);
+                }
+              });
+            });
+
+            await Promise.all(countPromises);
+            resolve(mappedData);
+          },
+          error: function (xhr) {
+            reject(xhr);
+          }
+        });
+      });
+    }
+  );
+
+
+
+  const relatedSlice = createSlice({
+    name: "related",
+    initialState: {
+      groups: {},
+      currentGroupId: "",
+      leaders: {},
+      currentLeaderId: "",
+      groupStudents: {}, // Store students per group
+
+      loading: {
+        global: false,
+        groups: false,
+        leaders: false,
+        leaderDetails: false,
+        groupStudents: false
+      },
+      error: {}
+    },
+
+    reducers: {
+      updateCurrentLeaderId: (state, action) => {
+        const { leaderId, details } = action.payload;
+        // if(state.leadersDetaisList[leaderId]){
+        state.leadersDetaisList[leaderId] = details
+        // }
+      },
+    },
+    extraReducers: (builder) => {
+      builder
+        .addCase(fetchUserGroupsWithMembers.pending, (state) => {
+          state.loading.groups = true;
+          state.error = {};
+        })
+        .addCase(fetchUserGroupsWithMembers.fulfilled, (state, action) => {
+          state.loading.groups = false;
+          state.groups = action.payload;
+        })
+        .addCase(fetchUserGroupsWithMembers.rejected, (state, action) => {
+          state.loading.groups = false;
+          state.error.title = "Failed";
+          state.error.message = action.payload || "Failed to load user groups";
+        });
+      builder
+        .addCase(fetchLeaders.pending, (state) => {
+          state.loading.leaders = true;
+          state.error = {};
+        })
+        .addCase(fetchLeaders.fulfilled, (state, action) => {
+          state.loading.leaders = false;
+          state.error = {};
+          state.leaders = action.payload;
+        })
+        .addCase(fetchLeaders.rejected, (state, action) => {
+          state.loading.leaders = false;
+          state.error.title = "error";
+          state.error.message = action.payload || "Failed to load group members";
+        });
+      builder
+        .addCase(fetchGroupStudents.pending, (state) => {
+          state.loading.groupStudents = true;
+        })
+        .addCase(fetchGroupStudents.fulfilled, (state, action) => {
+          state.loading.groupStudents = false;
+          // Store students by groupId. 
+          // Note: The action.meta.arg contains the groupId passed to the thunk
+          const arg = action.meta.arg;
+          const groupId = typeof arg === 'object' ? arg.groupId : arg;
+          const countOnly = typeof arg === 'object' ? arg.countOnly : false;
+
+          if (!countOnly) {
+            state.groupStudents[groupId] = action.payload;
+          }
+        })
+        .addCase(fetchGroupStudents.rejected, (state, action) => {
+          state.loading.groupStudents = false;
+          state.error.message = action.payload || "Failed to load students";
+        });
+
+    },
+  });
+
+</script>
